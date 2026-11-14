@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ChapterLoop</title>
+<style>
+:root{--bg:#f6f7f5;--cd:#fff;--tx:#1b1f1d;--mu:#68706b;--bd:#dde1dd;--ac:#0f766e;--acb:#d9f1ee;--ok:#15803d;--okb:#dcf3e3;--no:#b91c1c;--nob:#fbe0e0;--wn:#a16207;--wnb:#fdf0c9}
+@media(prefers-color-scheme:dark){:root{--bg:#121513;--cd:#1b1f1d;--tx:#e8ebe9;--mu:#9aa39e;--bd:#2c332f;--ac:#4fd1c5;--acb:#123b37;--ok:#6ee7a0;--okb:#143322;--no:#fca5a5;--nob:#3b1717;--wn:#fcd34d;--wnb:#3a2e0d}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:76px}
+#app{max-width:560px;margin:0 auto;padding:12px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:10px 0}
+label{display:block;font-size:13px;color:var(--mu);margin:8px 0 3px}.mu{color:var(--mu);font-size:13px}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;min-height:40px}
+input[type=text],input:not([type]),select,textarea{width:100%}input[type=checkbox]{min-height:0;width:20px;height:20px}
+button{cursor:pointer}button.on,button.p{background:var(--ac);color:var(--bg);border-color:var(--ac)}button.p{width:100%;margin-top:8px;font-weight:600}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.seg{display:flex;gap:6px}.seg button{flex:1}.seg button.on{background:var(--acb);color:var(--ac);border-color:var(--ac)}
+.row{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}.row>*{flex:1;min-width:0}
+.q{display:flex;gap:8px;align-items:center;border:1px solid var(--bd);border-radius:8px;padding:6px 8px;margin:5px 0;background:var(--cd)}.q.on{border-color:var(--ac);background:var(--acb)}
+.q .sn{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;color:var(--mu)}.q select{width:92px;min-height:32px;padding:2px}.th{height:34px;max-width:100%}
+.list{max-height:46vh;overflow:auto}
+#nav{position:fixed;bottom:0;left:0;right:0;background:var(--cd);border-top:1px solid var(--bd);display:flex;justify-content:center;padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px))}
+#nav button{border:0;background:none;flex:1;max-width:120px;font-size:12px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px;min-height:48px}#nav button.on{color:var(--ac)}
+.top{display:flex;justify-content:space-between;align-items:center}.tm{font-weight:600;background:var(--wnb);color:var(--wn);padding:2px 12px;border-radius:8px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px}.qi{max-width:100%;display:block}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.pad button{font-size:20px;min-height:48px}
+.disp{border:1px solid var(--ac);border-radius:8px;padding:8px 12px;font-size:22px;text-align:right;min-height:46px}
+.chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:8px;margin-right:4px}.right{background:var(--okb);color:var(--ok)}.wrong{background:var(--nob);color:var(--no)}.skip,.nokey{background:var(--wnb);color:var(--wn)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chips button{min-height:34px;padding:4px 10px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.big{font-size:24px;font-weight:600}
+.pg{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.pg button{min-height:40px;padding:0}
+.ans{background:var(--okb)}.mkd{background:var(--wnb)}.cur{border:2px solid var(--ac)}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:8px;z-index:9}
+.vw{max-height:52vh;overflow:auto;border:1px solid var(--bd);border-radius:8px;margin-top:8px}.in{position:relative;width:100%}.in canvas{width:100%;display:block}
+#sb{position:absolute;border:2px solid var(--ac);background:var(--acb);opacity:.5;display:none}
+.hs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-items:end}@media(max-width:480px){.hs{grid-template-columns:repeat(2,1fr)}}
+</style></head><body>
+<div id="app"></div>
+<nav id="nav"></nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const CD='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const SUBJ=['Organic Chemistry','Inorganic Chemistry','Physical Chemistry','Physics','Maths','Test'];
+const TLV=['JEE Main','JEE Advanced'],TKD=[['Minor','Minor test (part syllabus)'],['Major','Major test (full syllabus)']];
+const tName=u=>(u.tl||TLV[0])+' - '+(u.tk||'Minor')+' Test';
+const RS=['Concept gap','Silly mistake','Guess','Out of time'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const fmt=s=>{s=Math.max(0,Math.round(s));const p=n=>String(n).padStart(2,'0');return p(Math.floor(s/3600))+':'+p(Math.floor(s%3600/60))+':'+p(s%60)};
+function toast(m){let t=$('#toast');if(t)t.remove();t=document.createElement('div');t.id='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+
+/* ---------- storage: every read/write goes through load() and save() ---------- */
+let DB;
+function load(){try{DB=JSON.parse(localStorage.getItem('tm_db'))}catch(e){}DB=DB||{};DB.profile=DB.profile||{name:'',target:'JEE Advanced 2027'};DB.chap=DB.chap||{};DB.tests=DB.tests||[];DB.set=DB.set||{c:4,w:1,nw:0};DB.set.look=DB.set.look||'auto';Object.values(DB.chap).forEach(c=>{c.all=c.all||{};c.wrong=c.wrong||{};c.bm=c.bm||{};['wrong','bm'].forEach(K=>Object.values(c[K]).forEach(q=>{const a=q.sh&&c.all[q.id];if(a){if(!q.img&&a.img)q.img=a.img;if(!q.sol&&a.sol)q.sol=a.sol}}))})}
+function slim(){const o={...DB,chap:{}};for(const k in DB.chap){const c=DB.chap[k],n={...c};['wrong','bm'].forEach(K=>{n[K]={};for(const id in c[K]){const q=c[K][id],a=c.all[id];n[K][id]=a&&((q.img&&q.img===a.img)||(q.sol&&q.sol===a.sol))?{...q,img:q.img&&q.img===a.img?undefined:q.img,sol:q.sol&&q.sol===a.sol?undefined:q.sol,sh:1}:q}});o.chap[k]=n}return o}
+function save(){DB.ts=Date.now();clearTimeout(window.PT);window.PT=setTimeout(push,1500);try{const j=JSON.stringify(slim());localStorage.setItem('tm_db',j);if(j.length>4.2e6&&!window._sw){window._sw=1;toast('Storage is almost full ('+(j.length/1e6).toFixed(1)+' MB of about 5 MB). Export a backup soon.')}}catch(e){toast('Could not save. Storage is full or blocked. Export a backup from Profile.')}}
+load();
+
+/* ---------- chapters: one record per chapter name, reused every time ---------- */
+const findChap=n=>{const k=norm(n);return k&&Object.values(DB.chap).find(c=>c.k===k)};
+function getChap(n,subj){let c=findChap(n);if(!c)c=DB.chap[norm(subj)+'|'+norm(n)]={k:norm(n),name:n.trim(),subj,wrong:{},bm:{},all:{}};return c}
+const cnt=(c,k)=>Object.keys(c[k]).length;
+
+let S={tab:'test',sub:0,sub2:0,run:null,sum:null,snaps:{},bank:{kind:'all',subj:SUBJ[0],ck:null},hf:'',
+ su:{chap:'',subj:SUBJ[0],mode:'text',qs:[],sel:{},key:'',pdf:null,pdfName:'',pg:1,draw:false,tm:'auto',mins:60,msg:''}};
+
+const freshSU=()=>({chap:'',subj:SUBJ[0],mode:'text',qs:[],sel:{},key:'',pdf:null,pdfName:'',pg:1,draw:false,tm:'auto',mins:60,msg:''});
+const IC={test:'<path d="M4 20l4-1 11-11-3-3L5 16z"/>',bank:'<path d="M6 4h12v16l-6-4-6 4z"/>',hist:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',prof:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'};
+Object.assign(IC,{usr:'<circle cx="12" cy="8" r="4"/><path d="M4 20c1-4 4-6 8-6s7 2 8 6"/>',pal:'<path d="M12 3a9 9 0 100 18c1.5 0 2-1 1.5-2-.6-1.2.2-2.5 1.5-2.5H18a3 3 0 003-3c0-5-4-10.5-9-10.5z"/>',key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',dat:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3 3 7 3s7-1.3 7-3V6"/>',shr:'<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 11l8-4M8 13l8 4"/>'});
+const ico=n=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+$('#nav').innerHTML=[['test','Test'],['bank','Bank'],['hist','History'],['prof','Settings']].map(([t,l])=>`<button data-t="${t}" onclick="S.tab='${t}';S.sum=null;S.st=null;S.qd=null;render()">${ico(t)}${l}</button>`).join('');
+const seg=(ls,cur,fn)=>`<div class="seg">${ls.map((l,i)=>`<button class="${i==cur?'on':''}" onclick="${fn}(${i})">${l}</button>`).join('')}</div>`;
+const snip=q=>q.img?`<img class="th" src="${q.img}" alt="">`:esc((q.text||'').slice(0,80));
+
+function render(){applyLook();
+ let h;if(S.run)h=vRun();else if(S.qd)h=vQD();else if(S.sum)h=vSum();else h={test:vTest,bank:vBank,hist:vHist,prof:vProf}[S.tab]();
+ if(!S.run&&!S.sum&&!S.qd)h=hdr()+h;$('#app').innerHTML=h;$('#nav').style.display=S.run?'none':'flex';
+ document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===S.tab&&!S.sum));
+ if(!S.run&&!S.sum&&!S.qd&&S.tab=='test'&&S.sub==0&&S.su.mode=='crop'&&S.su.pdf)renderPg();
+}
+
+/* ---------- Test tab: setup ---------- */
+const nm=(a)=>a.map((q,i)=>(q.n=i+1,q));
+function chapNote(){const c=findChap(S.su.chap);return c?`Saved chapter (${esc(c.subj)}): ${cnt(c,'wrong')} wrong, ${cnt(c,'bm')} bookmarked`:(S.su.chap.trim()?'New chapter will be created':'')}
+function subjIn(v){const u=S.su;u.subj=v;if(v=='Test'){u.tl=u.tl||TLV[0];u.tk=u.tk||'Minor';u.chap=tName(u)}else if(/ Test$/.test(u.chap))u.chap='';render()}
+function chapIn(v){const u=S.su;u.chap=v;const c=findChap(v);if(c){u.subj=c.subj;const e=$('#subj');if(e)e.value=c.subj}$('#cn').textContent=chapNote().replace(/&amp;/g,'&')}
+function vTest(){const u=S.su;let h='';
+ {
+  h+=`<div class="card"><label for="subj">Subject</label><select id="subj" onchange="subjIn(this.value)">${SUBJ.map(x=>`<option${x==u.subj?' selected':''}>${x}</option>`).join('')}</select>
+  ${u.subj=='Test'?`<label for="tl">Exam</label><select id="tl" onchange="S.su.tl=this.value;S.su.chap=tName(S.su);render()">${TLV.map(x=>`<option${x==(u.tl||TLV[0])?' selected':''}>${x}</option>`).join('')}</select><label for="tk">Test type</label><select id="tk" onchange="S.su.tk=this.value;S.su.chap=tName(S.su);render()">${TKD.map(x=>`<option value="${x[0]}"${x[0]==(u.tk||'Minor')?' selected':''}>${x[1]}</option>`).join('')}</select><div class="mu">Saved as: ${esc(tName(u))}</div>`:`<label for="chap">Chapter</label><input id="chap" list="cl" value="${esc(u.chap)}" oninput="chapIn(this.value)" placeholder="Type a chapter, e.g. IUPAC" autocomplete="off"><datalist id="cl">${Object.values(DB.chap).filter(c=>c.subj!='Test').map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><div class="mu" id="cn">${chapNote()}</div>`}</div>
+  <div class="card"><label>PDF</label><input type="file" accept="application/pdf" onchange="pickPdf(this.files[0])"><div class="mu">${esc(u.msg||u.pdfName)}</div>
+  
+  <label for="key">Answer key</label><textarea id="key" rows="2" placeholder="1-B, 2-C, 3-4.5" oninput="S.su.key=this.value">${esc(u.key)}</textarea></div>`;
+  if(u.mode=='crop'&&u.pdf)h+=`<div class="card" id="cropc"><div class="row">${cropEd(u)?'<button onclick="cropBack()">Back</button>':''}<button onclick="pgGo(-1)">Prev page</button><span class="mu" style="text-align:center">Page ${u.pg} of ${u.pdf.numPages}</span><button onclick="pgGo(1)">Next page</button></div><div class="row"><button class="${u.draw?'on':''}" onclick="S.su.draw=!S.su.draw;render()">Draw: ${u.draw?'on (drag over a question)':'off (scroll)'}</button></div>${cropLbl(u)}
+   <div class="vw"><div class="in" id="vw" style="touch-action:${u.draw?'none':'auto'}" onpointerdown="pd(event)" onpointermove="pm(event)" onpointerup="pu()"><canvas id="cv"></canvas><div id="sb"></div></div></div></div>`+pendCard(u);
+  if(u.qs.length){const n=Object.keys(u.sel).length;
+   h+=edCard(u);h+=`<div class="card"><b>${n} of ${u.qs.length} selected</b><div class="mu">Range: choose from and to (the # numbers), for example 20 to 40</div>${(u.secs||[]).length>1?`<div class="chips">${u.secs.map(x=>`<button onclick="togSec('${x}')">${esc(x)} (${u.qs.filter(q=>q.sec==x).length})</button>`).join('')}</div>`:''}<div class="row"><input id="r1" type="number" placeholder="From Q" min="1"><input id="r2" type="number" placeholder="To Q" min="1"><button onclick="rng()">Select range</button></div><div class="row"><button onclick="selAll()">All</button><button onclick="S.su.sel={};render()">Clear</button></div>
+   <div class="list">${u.qs.map((q,i)=>`<div class="q ${u.sel[i]?'on':''}" id="qr${i}"><input type="checkbox" aria-label="Select Q${q.n}" ${u.sel[i]?'checked':''} onchange="tog(${i})"><b>#${q.n}${q.sec?' '+esc(q.sec.replace('Exercise','Ex'))+' Q'+q.qn:(q.qn&&q.qn!=q.n?' (PDF Q'+q.qn+')':'')}</b><span class="sn" style="cursor:pointer" onclick="qdOpen(${i})">${q.flag?`<span title="${esc(q.flag)}" style="color:#e8a000">&#9888; ${esc(q.flag)}</span><br>`:''}${snip(q)}</span><button aria-label="Edit" onclick="edGo(${i})">Edit</button>${u.mode=='crop'?`<button aria-label="Delete" onclick="delQ(${i})">x</button>`:''}</div>`).join('')}</div>
+   <div style="margin-top:10px"><b>Save to bank</b><div class="mu">Saved under the chapter name above.</div><button class="p" style="width:100%;margin:6px 0" onclick="saveBank(1)">Save all questions</button>${(u.secs||[]).length?`<div class="mu">Save exercise-wise</div><div class="chips">${u.secs.map((x,k)=>`<button onclick="saveSec(${k})">Save ${esc(x)}</button>`).join('')}</div>`:''}<button style="width:100%;margin-top:6px" onclick="saveBank()">Add only selected questions</button></div>
+   </div>`}
+ }
+ {
+  const sel=u.qs.filter((q,i)=>u.sel[i]),auto=autoSec(sel)/60;
+  h+=`<div class="card"><b>Time</b>${seg(['Auto','Set my own'],u.tm=='auto'?0:1,'setTm')}
+  ${u.tm=='auto'?`<p class="mu">Auto time: ${Math.round(auto)} min (2 min per MCQ, 4 min per numerical)</p>`:`<label for="mins">Total minutes</label><input id="mins" type="number" min="1" value="${u.mins}" oninput="S.su.mins=+this.value">`}</div>
+  <div class="card"><b>Marking scheme</b><div class="row"><div><label for="mc">Correct</label><input id="mc" type="number" value="${DB.set.c}" oninput="DB.set.c=+this.value;save()"></div><div><label for="mw">Wrong MCQ (minus)</label><input id="mw" type="number" value="${DB.set.w}" oninput="DB.set.w=+this.value;save()"></div><div><label for="mn">Wrong numerical (minus)</label><input id="mn" type="number" value="${DB.set.nw}" oninput="DB.set.nw=+this.value;save()"></div></div><p class="mu">Check the current JEE rule and change these if needed.</p></div>
+  <div class="card"><b>${sel.length} questions selected</b><button class="p" onclick="startTest()">Start test</button><div class="row"><button onclick="copyQs()">Copy data</button></div><label for="pq">Paste a question set (from Claude)</label><textarea id="pq" rows="3" placeholder="Paste the copied list here"></textarea><div class="row"><button onclick="applyQs()">Add to list</button><button class="on" onclick="applyQs(1)">Add and start test</button></div><button onclick="copyFmt()">Copy example format</button><p class="mu">Pasted questions are text only. Questions with figures or graphs need the PDF crop.</p></div>`}
+ return h}
+const setSub=i=>{S.sub=i;render()};
+const setMode=i=>{S.su.mode=i?'crop':'text';S.su.qs=[];S.su.sel={};S.su.pdf=null;S.su.pdfName='';S.su.msg='';render()};
+const setTm=i=>{S.su.tm=i?'custom':'auto';render()};
+const tog=i=>{S.su.sel[i]?delete S.su.sel[i]:S.su.sel[i]=1;render()};
+const selAll=()=>{S.su.qs.forEach((q,i)=>S.su.sel[i]=1);render()};
+function rng(){const a=+$('#r1').value,b=+$('#r2').value;if(!a||!b||a>b)return toast('Enter a valid range, like 1 to 40');S.su.sel={};S.su.qs.forEach((q,i)=>{if(q.n>=a&&q.n<=b)S.su.sel[i]=1});render()}
+function delQ(i){const u=S.su,ns={};u.qs.splice(i,1);Object.keys(u.sel).forEach(k=>{k=+k;if(k<i)ns[k]=1;else if(k>i)ns[k-1]=1});u.sel=ns;nm(u.qs);render()}
+const autoSec=a=>a.reduce((t,q)=>t+(q.type=='num'?240:120),0);
+
+/* ---------- PDF reading ---------- */
+function ld(src){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=no;document.head.appendChild(e)})}
+async function initPdf0(){if(window._pi)return;try{const w=await(await fetch(CD+'pdf.worker.min.js')).text();pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([w],{type:'text/javascript'}))}catch(e){pdfjsLib.GlobalWorkerOptions.workerSrc=CD+'pdf.worker.min.js'}window._pi=1}
+async function initPdf(){if(window._pi)return;let b=CD;if(typeof pdfjsLib=='undefined'){b='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';try{await ld(b+'pdf.min.js')}catch(e){throw new Error('PDF library could not load. Check internet.')}}
+ const wu=b+'pdf.worker.min.js';try{const w=await(await fetch(wu)).text();pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([w],{type:'text/javascript'}))}catch(e){pdfjsLib.GlobalWorkerOptions.workerSrc=wu}window._pi=1}
+const isVis=q=>!q.text||q.text.length<25||(q.opts&&q.opts.some(o=>!o.trim()))||/\b(above|given|shown)\b|following\s+(compound|structure)|name of\s*(is\s*:?)?\s*$|(compound|structure)\s*(is|are)?\s*:?\s*$/i.test(q.text);
+/* ===== ChapterLoop PDF parser (layout based). Input: pages=[{W,H,items:[{s,x,y,h,w}]}]  (pdf units, y up) ===== */
+const CLP_SYM={a:'α',b:'β',c:'χ',d:'δ',e:'ε',f:'φ',g:'γ',h:'η',i:'ι',k:'κ',l:'λ',m:'μ',n:'ν',o:'ο',p:'π',q:'θ',r:'ρ',s:'σ',t:'τ',u:'υ',w:'ω',x:'ξ',y:'ψ',z:'ζ',D:'Δ',F:'Φ',G:'Γ',L:'Λ',P:'Π',Q:'Θ',S:'Σ',W:'Ω',Y:'Ψ'},CLP_PUA={0xAE:'→',0xAC:'←',0xB1:'±',0xB4:'×',0xB7:'•',0xA3:'≤',0xB3:'≥',0xB9:'≠',0xBB:'≈',0xB0:'°',0xA5:'∞',0xD6:'√',0xB6:'∂',0xD1:'∇',0xB5:'∝',0xDB:'⇔',0xDE:'⇒',0xD0:'∠',0xD7:'⋅',0xA2:'′'};
+function CLP_sym(s){return s.replace(/[\uF020-\uF0FF]/g,c=>{const k=c.charCodeAt(0)-0xF000;return CLP_PUA[k]||CLP_SYM[String.fromCharCode(k)]||''}).replace(/[\uE000-\uF8FF\uFFFD]/g,'')}
+const CLP_SUB='₀₁₂₃₄₅₆₇₈₉',CLP_K=s=>s.replace(/\d+/g,'#').trim();
+function CLP_join(its){let out='',pv=null;
+ for(const it of its){let s=CLP_sym(it.s).replace(/\s+/g,' ');if(!s.trim())continue;const t=s.trim();let sub=false;
+  if(pv&&/^\d+$/.test(t)&&it.h<pv.h*0.82&&it.y<=pv.y+0.3)sub=true;
+  let sp=true;if(pv){const gap=it.x-(pv.x+(pv.w||0));sp=/\s$/.test(pv.s)||/^\s/.test(s)||(pv.w?gap>0.1*it.h:true);if(sub||/^[∘°]$/.test(t))sp=false;if(pv&&/^[∘°]$/.test(pv.s.trim())&&gap>=0)sp=sp||false;
+   if(pv.w&&gap>2.6*it.h&&!sub)out+=' '}
+  out+=(out&&sp?' ':'')+(sub?t.replace(/\d/g,d=>CLP_SUB[d]):t.replace(/^[∘]$/,'°'));pv=it}
+ return out.replace(/\s+/g,m=>m.length>1&&m.includes('  ')?'  ':' ').trim()}
+function CLP_lines(pg,p){const its=pg.items.filter(i=>i.s&&i.s.trim()).sort((a,b)=>b.y-a.y||a.x-b.x),L=[];
+ for(const it of its){const h=it.h||10;let l=null;for(let k=L.length-1;k>=Math.max(0,L.length-3);k--){const c=L[k];if(Math.abs(c.y-it.y)<=Math.max(3,0.6*Math.max(h,c.h))){l=c;break}}
+  if(!l){l={p,y:it.y,h,items:[]};L.push(l)}else if(h>l.h){l.y=it.y;l.h=h}l.items.push(it)}
+ L.forEach(l=>{l.items.sort((a,b)=>a.x-b.x);l.x=l.items[0].x;l.text=CLP_join(l.items)});return L}
+const CLP_VIS=/\b(above|given|shown|following\s+(compound|structure|diagram))\b|name\s*of\s*(is\s*:?)?\s*$|(compound|structure)\s*(is|are)?\s*:?\s*$|name\s+of\s+is\b|structure\s+is\s*:?\s*$/i;
+const CLP_HEAD=/^\W*(?:(?:EXERCISE|SECTION|PART)\s*[-–—#:.\s]*([IVX]+|\d+|[A-D])|(PHYSICS|CHEMISTRY|MATHEMATICS|MATHS))\b(\s*[(\[][^)\]]*[)\]])?\W*$/i,CLP_CAPS=/^[-–\s]*[A-Z][A-Z0-9 &,.\-–/()]{9,}$/;
+function CLP_labelRe(mode){return mode=='Q'?[/^Q\s*\.?\s*(\d{1,3})\.?$/i,/^Q\s*\.?\s*(\d{1,3})\s*[.):]?\s+(?=\S)/i]:[/^(\d{1,3})[.)]$/,/^(\d{1,3})\s*[.)]\s+(?=\S)/]}
+function CLP_scan(lines,mode){const [solo,pre]=CLP_labelRe(mode),cand=[];
+ lines.forEach((l,li)=>{l.items.forEach((it,k)=>{const t=it.s.trim();let m=solo.exec(t),rest=null;
+   if(!m&&k==0){m=pre.exec(it.s.trim()+' x');if(m)rest=1}
+   if(m)cand.push({li,k,n:+m[1],x:it.x,y:l.y,h:l.h,p:l.p,first:k==0})})});
+ const firsts=cand.filter(c=>c.first).map(c=>c.x),mg=firsts.length?Math.min(...firsts)+30:1e9;return{cand,mg}}
+function CLP_split(pg0){const LR=/^(Q\s*\.?\s*\d{1,3}\.?|\d{1,3}[.)])$/i,P=[];
+ pg0.forEach((pg,pi)=>{let two=false,m=0;const labs=pg.items.filter(it=>LR.test(it.s.trim()));
+  if(labs.length>=4&&labs.length<=20){const txt=l=>pg.items.filter(it=>Math.abs(it.y-l.y)<4&&it.x>l.x+5&&it.x<l.x+pg.W*0.45&&!LR.test(it.s.trim())).reduce((a,it)=>a+it.s.length,0);
+   const L=labs.filter(l=>l.x<pg.W*0.3),R=labs.filter(l=>l.x>=pg.W*0.42&&l.x<pg.W*0.7);
+   if(L.length>=2&&R.length>=2&&[...L,...R].filter(l=>txt(l)>=18).length>=Math.ceil((L.length+R.length)*0.7)){two=true;m=Math.min(...R.map(l=>l.x))-6}}
+  if(two){P.push({W:m,H:pg.H,real:pi+1,xr:[0,m],items:pg.items.filter(it=>it.x<m)});P.push({W:pg.W-m,H:pg.H,real:pi+1,xr:[m,pg.W],items:pg.items.filter(it=>it.x>=m).map(it=>({...it,x:it.x-m}))})}
+  else P.push({W:pg.W,H:pg.H,real:pi+1,items:pg.items})});return P}
+function CLP_parse(pages0){const pages=CLP_split(pages0);
+ let all=[];pages.forEach((pg,pi)=>{CLP_lines(pg,pi+1).filter(l=>l.y<pg.H*0.93&&l.y>pg.H*0.055).forEach(l=>all.push(l))});
+ const cnt={};pages.forEach((pg,pi)=>new Set(all.filter(l=>l.p==pi+1).map(l=>CLP_K(l.text))).forEach(k=>cnt[k]=(cnt[k]||0)+1));
+ const lim=Math.max(4,pages.length*0.4);all=all.filter(l=>!(l.text.length<40&&cnt[CLP_K(l.text)]>=lim&&!CLP_HEAD.test(l.text)&&!/^Q\s*\.?\s*\d/i.test(l.text)));
+ const name=m=>{m=String(m).toUpperCase();return /^([IVX]+|\d+)$/.test(m)?'Exercise '+m:/^[A-D]$/.test(m)?'Section '+m:m[0]+m.slice(1).toLowerCase()};let keyIdx=all.length,seen={};
+ for(let i=0;i<all.length;i++){const m=CLP_HEAD.exec(all[i].text);if(m){const n=name(m[1]||m[2]);if(seen[n]){keyIdx=i;break}seen[n]=1}
+  else if(/^\W*(answer\s*key|answers)\W*$/i.test(all[i].text)){keyIdx=i;break}}
+ const ql=all.slice(0,keyIdx);let kl=all.slice(keyIdx),sl=[];
+ {const SH=/^\W*(hints?\s*(&|and)\s*)?solutions?\b/i;let si=kl.findIndex(l=>l.text.length<90&&SH.test(l.text)&&l.text.replace(/[^A-Za-z]/g,'')===l.text.replace(/[^A-Za-z]/g,'').toUpperCase());
+  if(si<0&&kl.length&&!/answer\s*key|answers/i.test(kl[0].text)&&kl.some(l=>/\bAns(wer)?\.?\s*[:\-]?\s*[(\d]/i.test(l.text)))si=0;
+  if(si>=0){sl=kl.slice(si);kl=kl.slice(0,si)}}
+ const med=a=>{a=a.sort((x,y)=>x-y);return a.length?a[a.length>>1]:14};const gaps=[];for(let i=1;i<ql.length;i++)if(ql[i].p==ql[i-1].p)gaps.push(ql[i-1].y-ql[i].y);const mg=med(gaps);
+ // ---- pick label style, accept labels sequentially per exercise
+ const pick=mode=>{const {cand,mg:mgn}=CLP_scan(ql,mode);let ex='',last=0;const exAt={};let hi=0;const heads=[];ql.forEach((l,i)=>{const m=CLP_HEAD.exec(l.text);if(m)heads.push({i,n:name(m[1]||m[2])})});
+  const acc=[];let cur='',lastN=0,hp=0;
+  for(const c of cand.sort((a,b)=>a.li-b.li||a.k-b.k)){while(hp<heads.length&&heads[hp].i<c.li){cur=heads[hp].n;lastN=0;hp++}
+   if(c.first&&c.x>mgn)continue;const ok=c.n==lastN+1,gap=c.n>lastN+1&&c.n<=lastN+3&&lastN>0,rs=c.n==1&&lastN>0;
+   if(ok||gap||rs||(lastN==0&&c.n<=2)){acc.push({...c,ex:cur,gap:gap||(lastN==0&&c.n==2)});lastN=c.n}}
+  return acc};
+ let acc=pick('Q');const accN=pick('N');if(accN.length>acc.length*1.5&&accN.length>5)acc=accN;
+ const useN=acc===accN&&acc.length>0;
+ if(!useN){const add=[];for(let i=0;i+1<acc.length;i++){const a=acc[i],b=acc[i+1];if(a.ex!==b.ex||b.n<=a.n+1||b.n-a.n>6)continue;let from=a.li+1,got=0;
+   for(let m=a.n+1;m<b.n;m++){const re=new RegExp('(^|\\s)Q\\s*\\.?\\s*'+m+'\\s*[.):\\-]?(?=\\s|$)','i');let f=-1;for(let j=from;j<b.li;j++){if(re.test(ql[j].text)){f=j;break}}
+    if(f>=0){const l=ql[f];add.push({li:f,k:0,n:m,x:l.x,y:l.y,h:l.h,p:l.p,first:true,ex:a.ex,gap:false,rescued:true});from=f+1;got++}}if(got==b.n-a.n-1)b.gap=false}
+  if(add.length)acc=acc.concat(add).sort((x,y)=>x.li-y.li||x.k-y.k)}
+ // multi-label lines => structure grid pages
+ const perLine={};acc.forEach(a=>perLine[a.li]=(perLine[a.li]||0)+1);const gridPg={};acc.forEach(a=>{if(perLine[a.li]>1)gridPg[a.p]=1});
+ const Wof=p=>pages[p-1].W,Hof=p=>pages[p-1].H;
+ const qs=[];
+ acc.forEach((a,i)=>{const nxt=acc[i+1],grid=!!gridPg[a.p],q={sec:a.ex,qn:a.n,grid,gap:a.gap,p:a.p};
+  let lines=[];
+  if(!grid){const end=nxt?nxt.li:ql.length;let stop=false;
+   for(let j=a.li;j<end&&!stop;j++){const l=ql[j];if(j>a.li&&(CLP_HEAD.test(l.text)||CLP_CAPS.test(l.text)&&!/^\(?[A-E]\)/.test(l.text)||/^(Sol(ution)?|Ans(wer)?|Hint|Example|Illustration)\b\s*[:.\-\d]/i.test(l.text))){stop=true;break}
+    lines.push(j==a.li?{...l,text:l.text.replace(/^Q\s*\.?\s*\d{1,3}\s*[.):\-]?\s*/i,a.k==0&&/^\d/.test(l.text)&&0?'':'').replace(/^\d{1,3}\s*[.)]\s*/,q.sec===undefined?'':'')}:l)}
+   // drop lines after last option on a later page
+   const txt=lines.map(l=>l.text).join('\n');let lastD=-1;lines.forEach((l,ix)=>{if(/(^|\s)\(\s*(D|4)\s*\)/.test(l.text)&&!/^\W*Column/i.test(txt))lastD=ix});
+   if(lastD>=0){const pD=lines[lastD].p;lines=lines.filter((l,ix)=>ix<=lastD||l.p==pD)}}
+  q.lines=lines;q.txt=lines.map(l=>l.text).join('\n').trim();qs.push(q)});
+ // ---- parse bodies
+ qs.forEach(q=>{const t=q.txt;q.mtf=/Column\s*[-–—]?\s*(I|1)\b/i.test(t);q.text=t.replace(/\s*\n\s*/g,' ').replace(/ {2,}/g,' ').trim();q.opts=null;
+  if(!q.mtf&&!q.grid){const o=CLP_opts(t);if(o){q.opts=o.opts;q.nopt=o.opts.length;q.text=o.stem}}
+  // visual?
+  let big=false;for(let i=1;i<q.lines.length;i++)if(q.lines[i].p==q.lines[i-1].p&&q.lines[i-1].y-q.lines[i].y>2.3*mg)big=true;
+  const frag=q.lines.slice(1).some(l=>l.text.length<=5&&/^[A-Za-z0-9₀-₉°+\-−=|()]+$/.test(l.text)&&!/^\(\s*[A-E1-5]\s*\)$/.test(l.text)),semi=!!(q.opts&&q.opts.some(o=>/^[;,]/.test(o.trim())));const emptyOpt=q.opts&&q.opts.some(o=>!o.trim()),short=!q.opts&&q.text.length<12;
+  q.vis=true;
+  q.kind=q.grid?'structure':q.mtf?'match':/assertion|reason\s*\(r\)/i.test(q.text)?'assertion-reason':/statement[\s-]*(i|1)\b/i.test(q.text)?'statement':/one or more|more than one|multiple correct/i.test(q.text)?'multi':'single'});
+ // ---- regions for image crops
+ qs.forEach((q,i)=>{q.regs=[];const nxt=qs[i+1];
+  if(q.grid){const a=acc[i],W=Wof(a.p),col=a.x<W*0.3?0:1,same=acc.map((b,ix)=>({b,ix})).filter(o=>o.b.p==a.p&&(o.b.x<W*0.3?0:1)==col).sort((x,y)=>y.b.y-x.b.y),k=same.findIndex(o=>o.ix==i),pv=same[k-1],nx=same[k+1],H=Hof(a.p);
+   const top=pv?(pv.b.y+a.y)/2:H*0.93,bot=nx?(nx.b.y+a.y)/2:Math.max(H*0.055,a.y-(pv?Math.min(60,(pv.b.y-a.y)/2):60));
+   const rX=acc.filter(b=>b.p==a.p&&b.x>=W*0.3).map(b=>b.x),x1L=rX.length?Math.max(Math.min(...rX)-6,a.x+60):W*0.47;q.regs.push({p:a.p,x0:col?Math.max(0,a.x-8):0,x1:col?W:x1L,y1:top,y0:bot});return}
+  const pgs=[...new Set(q.lines.map(l=>l.p))];
+  pgs.forEach((p,pi)=>{const ls=q.lines.filter(l=>l.p==p),H=Hof(p),W=Wof(p),first=pi==0,lastL=ls[ls.length-1],a=acc[i];
+   const nextSame=nxt&&nxt.p==p?acc[i+1]:null,prevL=first&&a.li>0&&ql[a.li-1].p==p?ql[a.li-1]:null;const top=first?(prevL?Math.min(prevL.y-3,ls[0].y+ls[0].h+3+mg):H*0.93):H*0.93;
+   let bot=Math.max(H*0.055,nextSame?lastL.y-0.8*mg:lastL.y-3*mg);if(nextSame)bot=Math.min(lastL.y-2,Math.max(bot,nextSame.y+nextSame.h*0.9+1));
+   q.regs.push({p,x0:0,x1:W,y1:top,y0:Math.min(bot,top-12),lt:first?ls[0].y+ls[0].h*0.95:undefined,ct:(first&&i>0&&acc[i-1].p==p)?acc[i-1].y:H*0.95,cb:nextSame?nextSame.y+nextSame.h*0.9+1:H*0.06})})});
+ // ---- answer key
+ const keys=CLP_keys(kl,pages,name),sols=CLP_sols(sl,pages,name);
+ const out=[];qs.forEach(q=>{const so=(sols[q.sec]||{})[q.qn];let c=(keys[q.sec]||{})[q.qn];let key,ref;q.hasKeys=Object.keys(keys).length>0||Object.keys(sols).length>0;
+  if(c===undefined&&so&&so.ans)c=so.ans;
+  if(c){const t=c.replace(/\s+/g,' ').trim(),u=t.replace(/\s+/g,'');
+   if(/^\(?[A-M](,[A-M])*\)?$/.test(u))key=u.replace(/[()]/g,'');
+   else if(q.opts&&/^\(?[a-m](,[a-m])*\)?$/.test(u))key=u.replace(/[()]/g,'').toUpperCase();
+   else if(/^\(?[1-9](,[1-9])*\)?$/.test(u)&&(q.opts||/^\(/.test(u)))key=u.replace(/[()]/g,'').split(',').map(d=>'ABCDEFGHI'[+d-1]).join(',');
+   else if(/^-?\d+(\.\d+)?$/.test(u))key=u;
+   else{const pr=[...t.replace(/,/g,' ').matchAll(/\(?\s*([A-E])\s*\)?\s*[-–:]?\s*([P-T])\b/g)].map(m=>m[1]+'-'+m[2]);
+    if(pr.length>=2&&!/\(\s*[A-E]\s*\)\s*$/.test(t))key=pr.join(', ');else ref=t.slice(0,200)}}
+  let type;if(q.mtf)type='mtf';else if(q.opts)type='mcq';else if(key&&/^-?\d+(\.\d+)?$/.test(key))type='num';else type='sub';
+  let multi=false;if(type=='mcq'&&key&&/^[A-M](,[A-M])+$/.test(key)){multi=true;q.kind='multi'}
+  if(type=='mcq'&&key&&!/^[A-M](,[A-M])*$/.test(key))key=undefined;
+  let nopt=q.nopt,guess=false;if(type=='sub'&&key&&/^[A-M](,[A-M])*$/.test(key)){type='mcq';nopt=Math.max(4,...key.replace(/,/g,'').split('').map(c=>c.charCodeAt(0)-64))}else if(type=='sub'&&!key&&!ref&&!q.grid&&!/numerical|integer|nearest|value of/i.test(q.text)){type='mcq';nopt=4;guess=true}
+  if(type=='sub'&&key&&!ref)ref=key;
+  const flags=[];if(q.gap)flags.push('numbering gap');if(guess||type=='sub')flags.push('check type: MCQ or numerical?');if(type=='mcq'&&q.opts&&q.opts.filter(o=>o.trim()).length<3&&!q.vis)flags.push('few options');
+  if(q.opts&&q.opts.some(o=>o.length>220))flags.push('long option');if(!q.vis&&q.text.length<15)flags.push('short text');if(q.hasKeys&&key===undefined&&!ref&&type!='sub')flags.push('no key');
+  if(!useN){const sw=[];q.lines.slice(1).forEach(l=>{const re=/(^|\s)Q\s*\.?\s*(\d{1,3})\s*[.):\-]?(?=\s|$)/gi;let mm;while((mm=re.exec(l.text))){if(+mm[2]!==q.qn&&sw.indexOf(+mm[2])<0)sw.push(+mm[2])}});if(sw.length)flags.push('image also shows Q'+sw.join(', Q'))}
+  out.push({solRegs:so?so.regs:undefined,multi,nopt,n:out.length+1,qn:q.qn,sec:q.sec,type,kind:q.kind,text:q.text.slice(0,700),opts:q.opts?q.opts.map(o=>o.trim().slice(0,220)):undefined,key,ref,vis:q.vis,regs:q.regs,p:q.p,flag:flags.join(', ')})});
+ for(let i=0;i<out.length;i++){const o=out[i],nx=out[i+1];if(nx&&nx.sec===o.sec&&nx.qn>o.qn+1&&nx.qn-o.qn<=6){o.miss=[];for(let m=o.qn+1;m<nx.qn;m++)o.miss.push(m);o.flag=(o.flag?o.flag+', ':'')+'may also contain Q'+o.miss.join(', Q')+' (numbering jumps from '+o.qn+' to '+nx.qn+')'}}
+ out.forEach(o=>{o.regs.concat(o.solRegs||[]).forEach(r=>{const pp=pages[r.p-1];r.p=pp.real;if(pp.xr){r.x0+=pp.xr[0];r.x1+=pp.xr[0]}});o.p=pages[o.p-1].real;if(o.solRegs&&o.solRegs.length)o.sp=o.solRegs[0].p});
+ {const good=out.filter(o=>o.opts||o.key!==undefined||o.type=='mtf').length;if(out.length&&good<Math.max(2,out.length*0.25))out.notQ=true}
+ return out}
+function CLP_sols(sl,pages,name){const res={};if(!sl.length)return res;
+ const Hof=p=>pages[p-1].H,Wof=p=>pages[p-1].W,pmin={};sl.forEach(l=>{pmin[l.p]=Math.min(pmin[l.p]===undefined?1e9:pmin[l.p],l.x)});
+ const mk=[];let ex='',last=0;
+ sl.forEach((l,li)=>{const hm=CLP_HEAD.exec(l.text);if(hm){ex=name(hm[1]||hm[2]);last=0;mk.push({li,head:1,p:l.p,y:l.y,h:l.h});return}
+  const it=l.items[0];if(!it)return;const t=it.s.trim(),m=/^([l\d]\d{0,2})\s*[.)]$/.exec(t)||/^([l\d]\d{0,2})\s*[.)]\s+\S/.exec(t);if(!m)return;
+  if(it.x>pmin[l.p]+Math.max(28,Wof(l.p)*0.06))return;const n=+m[1].replace(/l/g,'1');
+  if(n>last&&n<=last+5||(last==0&&n<=3)){mk.push({li,n,ex,p:l.p,y:l.y,h:l.h,x:l.x});last=n}});
+ mk.forEach((a,i)=>{if(a.head)return;const nx=mk[i+1],pv=mk[i-1],ls=sl.slice(a.li,nx?nx.li:sl.length),regs=[];
+  const txt=ls.slice(0,4).map(l=>l.text).join(' ');let ans;
+  const m1=/Ans(?:wer)?\.?\s*[:\-=]?\s*\(\s*([A-Da-d1-9](?:\s*,\s*[A-Da-d1-9])*)\s*\)/.exec(txt);
+  if(m1)ans='('+m1[1].replace(/\s/g,'').toUpperCase()+')';else{const m2=/Ans(?:wer)?\.?\s*[:\-=]?\s*(-?\d+(?:\.\d+)?)(?=\s|$|\.\s|\.$)/.exec(txt);if(m2)ans=m2[1]}
+  const pgs=[...new Set(ls.map(l=>l.p))];
+  pgs.forEach((p,pi)=>{const H=Hof(p),W=Wof(p),first=pi==0,lp=ls.filter(l=>l.p==p),lastL=lp[lp.length-1],nextSame=nx&&nx.p==p?nx:null,
+   top=first?a.y+a.h*1.0+2:H*0.93;let bot=Math.max(H*0.055,nextSame?nextSame.y+nextSame.h*0.9+1:lastL.y-lastL.h*0.4);if(!nextSame&&p!=pgs[pgs.length-1])bot=H*0.055;
+   if(!nextSame&&pi==pgs.length-1&&nx&&nx.p!=p)bot=H*0.055;
+   regs.push({p,x0:0,x1:W,y1:top,y0:Math.min(bot,top-12),lt:first?a.y+a.h*0.95:undefined,ct:(first&&pv&&pv.p==p)?pv.y:H*0.95,cb:nextSame?nextSame.y+nextSame.h*0.9+1:H*0.06})});
+  (res[a.ex]=res[a.ex]||{})[a.n]={regs,ans}});
+ return res}
+function CLP_opts(txt){const T=txt.replace(/\r/g,'');
+ const get=(cls,needSpace)=>{const re=new RegExp('(^|\\s)\\(\\s*(['+cls+'])\\s*\\)','g'),mk=[];let m;while((m=re.exec(T))){const st=m.index+m[1].length;if(needSpace&&!(st==0||T[st-1]=='\n'||/\s\s$/.test(T.slice(Math.max(0,st-2),st))))continue;mk.push({L:m[2],s:st,e:re.lastIndex})}return mk};
+ const get2=()=>{const re=/(^|\n)[ \t]*([A-M])[.)][ \t]+/g,mk=[];let m;while((m=re.exec(T)))mk.push({L:m[2],s:m.index+m[1].length,e:re.lastIndex});return mk};
+ const cl=x=>x.replace(/\s*\n\s*/g,' ').replace(/ {2,}/g,' ').trim();
+ for(const [cls,sp,base] of [['A-M',0,'A'],['1-9',1,'1'],['1-9',0,'1'],['a-m',1,'a'],['P',0,'A']]){let mk=cls=='P'?get2():get(cls,sp);
+  const by={};mk.forEach(x=>{if(!by[x.L]||x.s<by[x.L].s&&0)by[x.L]=by[x.L]||x});
+  let n=0;while(by[String.fromCharCode(base.charCodeAt(0)+n)])n++;if(n<3)continue;n=Math.min(n,13);
+  const u=[];for(let k=0;k<n;k++)u.push(by[String.fromCharCode(base.charCodeAt(0)+k)]);
+  const so=[...u].sort((x,y)=>x.s-y.s),opts=[];
+  so.forEach((x,i)=>{opts[x.L.charCodeAt(0)-base.charCodeAt(0)]=cl(T.slice(x.e,so[i+1]?so[i+1].s:T.length))});
+  return{stem:cl(T.slice(0,so[0].s)),opts}}
+ return null}
+function CLP_keys(kl,pages,name){const res={};if(!kl.length)return res;
+ const heads=[],labs=[],others=[];const PL=!kl.some(l=>l.items.some(it=>/^Q\s*\.?\s*\d{1,3}\.?$/i.test(it.s.trim()))),R1=PL?/^(\d{1,3})[.)]$/:/^Q\s*\.?\s*(\d{1,3})\.?$/i,R2=PL?/^(\d{1,3})[.)]\s+(\S[\s\S]*)$/:/^Q\s*\.?\s*(\d{1,3})\.?\s+(\S[\s\S]*)$/i;
+ kl.forEach(l=>{const m=CLP_HEAD.exec(l.text);if(m){heads.push({p:l.p,y:l.y,n:name(m[1]||m[2])});return}
+  l.items.forEach((it,k)=>{const t=it.s.trim();let m2=R1.exec(t);
+   if(m2)labs.push({p:l.p,y:l.y,x:it.x,n:+m2[1],h:l.h,it});
+   else if((m2=R2.exec(t))){labs.push({p:l.p,y:l.y,x:it.x,n:+m2[1],h:l.h});others.push({p:l.p,y:l.y,x:it.x+22,s:m2[2],h:l.h})}
+   else others.push({p:l.p,y:l.y,x:it.x,s:it.s,h:l.h,it})})});
+ const pos=o=>o.p*1e5-o.y;heads.sort((a,b)=>pos(a)-pos(b));
+ labs.forEach(L=>{L.cells=[];let ex='';heads.forEach(h=>{if(pos(h)<=pos(L)+2)ex=h.n});L.ex=ex});
+ const byP={};labs.forEach(L=>(byP[L.p]=byP[L.p]||[]).push(L));
+ Object.values(byP).forEach(ls=>{ls.forEach(l=>{let r=ls.filter(m=>m!==l&&Math.abs(m.y-l.y)<5&&m.x>l.x+25).sort((a,b)=>a.x-b.x)[0];if(!r)r=ls.filter(m=>m!==l&&Math.abs(m.y-l.y)<40&&m.x>l.x+60).sort((a,b)=>a.x-b.x)[0];l.colEnd=r?r.x-4:1e9})});
+ others.forEach(o=>{const cands=(byP[o.p]||[]).filter(L=>L.y>=o.y-2&&L.x<=o.x+6&&o.x<L.colEnd+0&&L.y-o.y<4.5*(o.h||12));if(!cands.length)return;
+  const rowOf=L=>Math.round((L.y-o.y)/4);cands.sort((a,b)=>rowOf(a)-rowOf(b)||b.x-a.x);cands[0].cells.push(o)});
+ labs.sort((a,b)=>a.p-b.p||(Math.round(b.y/6)-Math.round(a.y/6))||a.x-b.x);
+ const st={};labs.forEach(L=>{const s=st[L.ex]=st[L.ex]||{seen:new Set(),prev:0};let n=L.n;if(s.seen.has(n)&&n!==s.prev+1&&!s.seen.has(s.prev+1))n=s.prev+1;s.seen.add(n);s.prev=n;
+  L.cells.sort((a,b)=>(Math.round(b.y/4)-Math.round(a.y/4))||a.x-b.x);(res[L.ex]=res[L.ex]||{})[n]=L.cells.map(c=>c.s).join(' ')});
+ return res}
+
+
+function inkRows(c,x,w){const m=Math.round(w*0.05);x=Math.max(0,Math.round(x)+m);w=Math.max(1,Math.min(c.width-x,Math.round(w)-2*m));const k='_i'+x+'_'+w;if(c[k])return c[k];const d=c.getContext('2d').getImageData(x,0,w,c.height).data,r=new Uint8Array(c.height);for(let y=0;y<c.height;y++){let n=0;for(let i=y*w*4,e=i+w*4;i<e;i+=4){if(d[i]+d[i+1]+d[i+2]<510)n++}r[y]=n>=2?1:0}return c[k]=r}
+function refineRows(R,top,bt,cT,cB,L){let t=Math.round(top),g=0;for(let y=t-1;y>=cT;y--){if(R[y]){t=y;g=0}else if(++g>=3)break}
+ let b=Math.round(bt);g=0;for(let y=b;y<cB;y++){if(R[y]){b=y+1;g=0}else if(++g>=4)break}
+ let nt=L?Math.max(cT,t-3):Math.min(top,Math.max(cT,t-3)),nb=Math.min(cB,b+3);if(nb<nt+12)nb=b+3;return[nt,nb]}
+async function cropQ(pdf,regs,cache,SC,QL){const S1=SC||1.25,parts=[];
+ for(const r of regs){let c=cache[r.p];if(!c){const pg=await pdf.getPage(r.p),vp=pg.getViewport({scale:S1}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;c=cache[r.p]=cv}
+  const x=Math.max(0,r.x0*S1),w=Math.min(c.width-x,(r.x1-r.x0)*S1);let top=Math.max(0,c.height-r.y1*S1),bt=Math.min(c.height,top+(r.y1-r.y0)*S1);
+  if(r.ct!==undefined&&r.cb!==undefined&&w>40){const R=inkRows(c,x,w),cT=Math.max(0,Math.round(c.height-r.ct*S1)),cB=Math.min(c.height,Math.round(c.height-r.cb*S1));const ts=r.lt!==undefined?Math.max(0,c.height-r.lt*S1):top;[top,bt]=refineRows(R,ts,bt,cT,cB,r.lt!==undefined);bt=Math.min(c.height,bt)}
+  const hh=bt-top;if(hh<12||w<12)continue;parts.push({c,x,top,w,hh})}
+ if(!parts.length)return null;const W=Math.max(...parts.map(p=>p.w)),H=parts.reduce((s,p)=>s+p.hh,0),t=document.createElement('canvas');t.width=W;t.height=H;const g=t.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);let y=0;parts.forEach(p=>{g.drawImage(p.c,p.x,p.top,p.w,p.hh,0,y,p.w,p.hh);y+=p.hh});return t.toDataURL('image/jpeg',QL||.5)}
+async function pickPdf(f){if(!f)return;const u=S.su;u.mode='text';u.msg='Reading '+f.name+'...';u.qs=[];u.sel={};u.retry=null;render();
+ try{await initPdf();const pdf=u.pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;u.pdfName=f.name;u.pdfSig=f.name+'_'+f.size;u.pg=1;
+  const pages=[];for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p),c=await pg.getTextContent(),vp=pg.getViewport({scale:1});
+   pages.push({W:vp.width,H:vp.height,items:c.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],h:it.height||Math.abs(it.transform[3])||10,w:it.width}))})}
+  const qs=CLP_parse(pages),cache={};if(qs.notQ){u.qs=[];u.msg=f.name+': this looks like theory or notes (no options, no answer key found), so no questions were made. Choose a question PDF.';render();return}let k=0;
+  for(const q of qs){if(q.vis&&q.regs&&q.regs.length){u.msg='Cropping figures '+(++k)+'...';try{const im=await cropQ(pdf,q.regs,cache);if(im){q.img=im}else q.flag=(q.flag?q.flag+', ':'')+'crop failed'}catch(e){q.flag=(q.flag?q.flag+', ':'')+'crop failed'}}Object.keys(cache).forEach(k=>{if(+k<(q.p||1)-1)delete cache[k]});delete q.regs;delete q.vis}
+  {const c2={};let k2=0;for(const q of qs){if(q.solRegs&&q.solRegs.length){u.msg='Reading solutions '+(++k2)+'...';try{const im=await cropQ(pdf,q.solRegs,c2,1.0,.42);if(im)q.sol=im}catch(e){}}Object.keys(c2).forEach(k=>{if(+k<(q.sp||1)-1)delete c2[k]});delete q.solRegs;delete q.sp}}
+  u.qs=qs;
+  if(u.qs.length){u.qs.forEach((q,i)=>u.sel[i]=1);u.secs=[...new Set(u.qs.map(q=>q.sec).filter(Boolean))];const nf=u.qs.filter(q=>q.flag).length,nk=u.qs.filter(q=>q.key!==undefined).length,mg=u.qs.filter(q=>q.miss&&q.miss.length);
+   u.msg=f.name+': found '+u.qs.length+' questions'+(u.secs.length>1?' in '+u.secs.length+' exercises':'')+', '+nk+' answers read from the key'+(qs.filter(q=>q.sol).length?', '+qs.filter(q=>q.sol).length+' solutions attached':'')+(nf?', '+nf+' marked for review (use Retry).':'.')+(mg.length?' Possibly merged: '+mg.map(q=>'Q'+q.qn+' (may include '+q.miss.map(m=>'Q'+m).join(', ')+')').join('; ')+'.':'')}
+  else{u.mode='crop';u.msg=f.name+': no readable question text, so crop mode is on. Turn Draw on and drag over each question.'}}
+ catch(e){u.msg='Could not read this PDF: '+((e&&e.message)||e)}
+ render()}
+function edCard(u,bare,ii){const i=ii!=null?ii:u.ed;if(i==null||!u.qs[i])return '';const q=u.qs[i],isM=q.type=='mcq',nO=q.nopt||4,pq=u.pend&&u.pend.kind=='q'&&u.retry===i?u.pend:null,shown=pq?pq.im:q.img;
+ const nv=`<button ${i?'':'disabled'} onclick="edGo(${i-1})">Previous</button><button ${i<u.qs.length-1?'':'disabled'} onclick="edGo(${i+1})">Next</button>`;
+ return `<div class="card" id="edc">${bare?'':`<div class="top"><b>Edit Q${q.n}${q.sec?' ('+esc(q.sec)+' Q'+q.qn+')':''}</b><button onclick="S.su.ed=null;render()">Close</button></div><div class="row">${nv}</div>`}${q.flag?`<div class="card" style="border-color:var(--wn);background:var(--wnb)"><b>Check this one</b><div class="mu">${esc(q.flag)}</div>${(q.miss||[]).map(m=>`<button onclick="insMiss(${i},${m})">Add missing Q${m} (crop it)</button>`).join('')}<button onclick="retryQ(${i})">Crop this question again</button></div>`:''}
+ ${shown?`<div style="position:relative">${pq?'<div class="mu"><b>New crop. Not saved yet.</b></div>':''}<img class="qi" src="${shown}" alt="Question image"><button aria-label="Edit image" title="Crop again" style="position:absolute;top:6px;right:6px" onclick="retryQ(${i})">&#9998;</button></div>
+ <div class="grid"><button onclick="retryQ(${i})">Crop again</button><button onclick="edNoImg(${i})">Remove image</button><button onclick="edUseText(${i})">Use typed text</button>${pq?'<button class="p" onclick="cropSave()">Save</button>':''}</div>`:`<div class="mu">No image. ${q.imgBak?'<button onclick="edBack('+i+')">Use the image again</button> ':''}<button onclick="retryQ(${i})">Crop from PDF</button></div>`}
+ <label>Question type</label><select onchange="edType(${i},this.value)">${[['mcq','MCQ (pick an option)'],['num','Numerical (type a number)'],['mtf','Match the column'],['sub','Written (not auto-checked)']].map(o=>`<option value="${o[0]}"${q.type==o[0]?' selected':''}>${o[1]}</option>`).join('')}</select>
+ ${isM?`<label>Number of options</label><select onchange="edN(${i},+this.value)">${[2,3,4,5,6,7,8,9,10,11,12,13].map(n=>`<option${n==nO?' selected':''}>${n}</option>`).join('')}</select>`:''}
+ <label><input type="checkbox" ${q.multi?"checked":""} onchange="S.su.qs[${i}].multi=this.checked"> Multiple correct answers</label>
+ ${q.img?'':`<label>Question text</label><textarea rows="3" oninput="S.su.qs[${i}].text=this.value">${esc(q.text||'')}</textarea>
+ ${isM?Array.from({length:nO},(_,k)=>`<label>Option ${'ABCDEFGHIJKLM'[k]}</label><input value="${esc((q.opts||[])[k]||'')}" oninput="edOpt(${i},${k},this.value)">`).join(''):''}`}
+ <label>Correct answer ${isM?'(letters like B or B,C)':q.type=='num'?'(number)':'(text)'}</label><input value="${esc(q.key||'')}" oninput="edKey(${i},this.value)"><div class="row"><button onclick="qSearch(${i})">Search Google</button><button onclick="qCopyAI(${i})">Copy for AI</button></div><p class="mu">The app cannot look up answers by itself. These open a Google search or copy the question so you can paste it into any AI chat.</p>
+ ${bare?'':`<label>Answer or solution text (optional)</label><input value="${esc(q.ref||'')}" oninput="S.su.qs[${i}].ref=this.value">`}
+ ${!bare&&q.sol?`<img class="qi" src="${q.sol}" alt="Solution image">`:''}<div class="row"><button onclick="retrySol(${i})">${q.sol?'Re-crop':'Add'} solution crop</button>${q.sol?`<button onclick="delete S.su.qs[${i}].sol;render()">Remove solution</button>`:''}</div>
+ ${bare?'':`<div class="row">${nv}</div><div class="row"><button class="p" onclick="S.su.ed=null;S.su.qs[${i}].flag='';render()">Done</button></div>`}</div>`}
+function edGo(i){const u=S.su;if(i<0||i>=u.qs.length)return;u.ed=i;render();const e=document.getElementById('edc');if(e)e.scrollIntoView({block:'start'})}
+const qTxt=q=>[(q.text||'').trim(),...(q.opts||[]).map((o,k)=>'('+'ABCDEFGHIJKLM'[k]+') '+o)].filter(Boolean).join('\n');
+function qSearchQ(q){const t=(q.text||'').replace(/\s+/g,' ').trim().slice(0,220);if(!t)return toast('No question text was read for this one. Use Copy for AI and paste the picture.');window.open('https://www.google.com/search?q='+encodeURIComponent(t),'_blank','noopener')}
+async function qCopyQ(q){const p='Solve this exam question. Give the correct option or answer and a short step-by-step solution.\n\n'+qTxt(q);
+ try{if(q.img&&window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){const bl=await new Promise(r=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);c.toBlob(r,'image/png')};im.src=q.img});await navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([p],{type:'text/plain'}),'image/png':bl})]);toast('Question and picture copied. Paste into an AI chat.');return}await navigator.clipboard.writeText(p);toast('Question text copied')}
+ catch(e){try{await navigator.clipboard.writeText(p);toast('Question text copied. The picture could not be copied.')}catch(_){toast('Could not copy')}}}
+const qSearch=i=>qSearchQ(S.su.qs[i]),qCopyAI=i=>qCopyQ(S.su.qs[i]);
+const edType=(i,v)=>{const q=S.su.qs[i];q.type=v;if(v=='mcq'&&!q.nopt)q.nopt=4;if(v!='mcq')q.multi=false;q.flag=(q.flag||'').split(', ').filter(x=>x.indexOf('check type')<0).join(', ');render()};
+const edN=(i,n)=>{const q=S.su.qs[i];q.nopt=n;if(q.opts){q.opts=q.opts.slice(0,n);while(q.opts.length<n)q.opts.push('')}render()};
+const edUseText=i=>{cropClr();const q=S.su.qs[i];q.imgBak=q.img;delete q.img;const n=q.nopt||4;q.opts=q.opts||[];while(q.opts.length<n)q.opts.push('');render()};
+const edBack=i=>{const q=S.su.qs[i];if(q.imgBak){q.img=q.imgBak;delete q.imgBak}render()};
+const edOpt=(i,k,v)=>{const q=S.su.qs[i];q.opts=q.opts||['','','',''];q.opts[k]=v};
+const mcqKey=v=>String(v).replace(/[\s()]/g,'').toUpperCase().replace(/[1-9]/g,d=>'ABCDEFGHI'[d-1]);
+const edKey=(i,v)=>{const q=S.su.qs[i];v=v.trim();q.key=v?(q.type=='mcq'?mcqKey(v):v):undefined};
+const edNoImg=i=>{cropClr();const q=S.su.qs[i];delete q.img;delete q.imgBak;q.text='';q.opts=Array(q.nopt||4).fill('');render()};
+const retryQ=i=>{S.qd=null;const u=S.su,q=u.qs[i];u.retrySol=null;u.ins=null;u.pend=null;u.pbox=null;u.mode='crop';u.retry=i;u.draw=true;u.pg=q.p||1;u.msg='Retry Q'+q.n+': drag a box over this question and its options.';render();toCrop()};
+function togSec(n){const u=S.su,ix=u.qs.map((q,i)=>q.sec==n?i:-1).filter(i=>i>=0),all=ix.every(i=>u.sel[i]);ix.forEach(i=>{if(all)delete u.sel[i];else u.sel[i]=1});render()}
+function scanQ(t,re,len){const h=[];let m,w=1;while((m=re.exec(t))){const v=+(m[1]||m[2]);if(v==w||(len&&v==w+1)){h.push({n:v,s:m.index,e:re.lastIndex});w=v+1}}return h}
+function parseQs(t){let hits=scanQ(t,/(?:^|\n)[ \t]*(?:Q(?:uestion)?\s*\.?\s*(\d{1,3})\s*[.):\-]?|(\d{1,3})\s*[.):])\s+/gi,1);if(hits.length<2)hits=scanQ(t,/(?:^|\s)(?:Q(?:uestion)?\s*\.?\s*(\d{1,3})\s*[.):\-]?|(\d{1,3})\s*[.):])\s+/gi);
+ return hits.map((h,i)=>{const b=t.slice(h.e,i+1<hits.length?hits[i+1].s:t.length).replace(/[ \t]+/g,' ').trim();
+  for(const set of[['A','B','C','D'],['a','b','c','d'],['1','2','3','4']]){let pos=0,ix=[];
+   for(const L of set){const r=new RegExp('(?:\\(\\s*'+L+'\\s*\\)|(?:^|\\s)'+L+'[.)])\\s*','m'),x=r.exec(b.slice(pos));if(!x)break;ix.push([pos+x.index,pos+x.index+x[0].length]);pos=pos+x.index+x[0].length}
+   if(ix.length==4)return{n:h.n,type:'mcq',text:b.slice(0,ix[0][0]).trim(),opts:ix.map((p,k)=>b.slice(p[1],k<3?ix[k+1][0]:b.length).trim())}}
+  return{n:h.n,type:'num',text:b}})}
+async function renderPg(){const u=S.su,p=await u.pdf.getPage(u.pg),vp=p.getViewport({scale:1.6}),c=$('#cv');if(!c)return;c.width=vp.width;c.height=vp.height;await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;const b=u.pbox,sb=$('#sb');if(sb)sb.style.cssText=b&&b.p==u.pg?`display:block;left:${b.l*100}%;top:${b.t*100}%;width:${b.w*100}%;height:${b.h*100}%`:'display:none'}
+const pgGo=d=>{const u=S.su,n=u.pg+d;if(n>=1&&n<=u.pdf.numPages){u.pg=n;render()}};
+let CR=null;
+function pd(e){if(!S.su.draw)return;const r=$('#cv').getBoundingClientRect();CR={x:e.clientX-r.left,y:e.clientY-r.top,r,x2:null,y2:null};e.currentTarget.setPointerCapture(e.pointerId)}
+function pm(e){if(!CR)return;const r=CR.r;CR.x2=Math.min(Math.max(e.clientX-r.left,0),r.width);CR.y2=Math.min(Math.max(e.clientY-r.top,0),r.height);$('#sb').style.cssText=`display:block;left:${Math.min(CR.x,CR.x2)}px;top:${Math.min(CR.y,CR.y2)}px;width:${Math.abs(CR.x2-CR.x)}px;height:${Math.abs(CR.y2-CR.y)}px`}
+function pu(){if(!CR||CR.x2===null){CR=null;return}const c=$('#cv'),R=CR.r,k=c.width/R.width,x=Math.min(CR.x,CR.x2),y=Math.min(CR.y,CR.y2),w=Math.abs(CR.x2-CR.x),h=Math.abs(CR.y2-CR.y);CR=null;if(w<15||h<15){$('#sb').style.display='none';return}
+ const t=document.createElement('canvas');t.width=w*k;t.height=h*k;t.getContext('2d').drawImage(c,x*k,y*k,w*k,h*k,0,0,t.width,t.height);
+ const u=S.su,im=t.toDataURL('image/jpeg',.6),kind=u.ins?'ins':u.retrySol!=null?'sol':u.retry!=null?'q':null;
+ if(!kind){u.qs.push({n:u.qs.length+1,type:'mcq',nopt:4,img:im});u.sel[u.qs.length-1]=1;render();return}
+ u.pend={im,p:u.pg,kind};u.pbox={l:x/R.width,t:y/R.height,w:w/R.width,h:h/R.height,p:u.pg};if(kind=='q')u.ed=u.retry;render();
+ setTimeout(()=>{const e=document.getElementById(kind=='q'?'edc':'pnd');if(e)e.scrollIntoView({block:'start'})},120)}
+const cropClr=()=>{const u=S.su;u.pend=null;u.pbox=null};
+const toCrop=()=>setTimeout(()=>{const e=document.getElementById('cropc');if(e)e.scrollIntoView({block:'start'})},120);
+const cropEd=u=>u.retry!=null||u.retrySol!=null||!!u.ins;
+function cropLbl(u){const q=u.retry!=null?u.qs[u.retry]:u.retrySol!=null?u.qs[u.retrySol]:u.ins?{sec:u.ins.sec,qn:u.ins.qn,n:''}:null;if(!q)return'';const a=u.retry!=null?'Re-cropping':u.retrySol!=null?'Solution crop for':'Adding missing',im=u.retry!=null?q.img:u.retrySol!=null?q.sol:'';
+ return`<div style="border:1px solid var(--ac);border-radius:10px;padding:8px;margin-top:8px"><b>${a} ${q.n?'#'+q.n+' ':''}${q.sec?esc(q.sec)+' ':''}Q${q.qn||q.n}</b>${im?`<div class="mu">Current picture (kept until you press Save):</div><img class="qi" style="max-height:110px;width:auto;max-width:100%" src="${im}" alt="Current crop">`:''}<div class="mu">Drag a box over it and its options on the page below. Drag again to redo. Press Save to keep it, or Back to cancel.</div></div>`}
+const pendCard=u=>{const p=u.pend;if(!p||p.kind=='q')return'';const t=p.kind=='sol'?'Solution picture for #'+((u.qs[u.retrySol]||{}).n||''):'New question Q'+(u.ins?u.ins.qn:'');return`<div class="card" id="pnd"><b>${t} (not saved yet)</b><img class="qi" src="${p.im}" alt="New crop"><div class="row"><button class="p" onclick="cropSave()">Save</button><button onclick="cropClr();render()">Crop again</button></div></div>`};
+function cropSave(){const u=S.su,P=u.pend;if(!P)return;
+ if(P.kind=='q'&&u.qs[u.retry]){const q=u.qs[u.retry];q.img=P.im;q.flag='';q.p=P.p;toast('Saved')}
+ else if(P.kind=='sol'&&u.qs[u.retrySol]){u.qs[u.retrySol].sol=P.im;toast('Solution saved')}
+ else if(P.kind=='ins'){const I=u.ins,at=I.after+1,ns={};u.qs.splice(at,0,{n:0,sec:I.sec,qn:I.qn,type:'mcq',nopt:4,img:P.im,p:P.p});Object.keys(u.sel).forEach(k=>{k=+k;ns[k>=at?k+1:k]=1});ns[at]=1;u.sel=ns;nm(u.qs);const a=u.qs[I.after];if(a&&a.miss){a.miss=a.miss.filter(x=>x!==I.qn);if(!a.miss.length){delete a.miss;a.flag='re-crop this one: its image may still show the next question'}}toast('Q'+I.qn+' added. Re-crop the question before it so it shows only its own part.')}
+ const keep=u.retry;u.retry=null;u.retrySol=null;u.ins=null;u.pend=null;u.pbox=null;u.mode='text';u.draw=false;render();
+ setTimeout(()=>{const e=document.getElementById(keep!=null?'edc':'qr'+u.qs.length);if(e)e.scrollIntoView({block:'center'})},80)}
+function cropBack(){const u=S.su,t=u.retry!=null?u.retry:u.retrySol!=null?u.retrySol:(u.ins?u.ins.after:null);u.retry=null;u.retrySol=null;u.ins=null;u.pend=null;u.pbox=null;u.mode='text';u.draw=false;render();if(t!=null)setTimeout(()=>{const e=document.getElementById('qr'+t);if(e)e.scrollIntoView({block:'center'})},60)}
+
+/* ---------- starting a test ---------- */
+function parseKey(t){const m={},re=/(\d+)\s*[-:=.)]\s*([A-Da-d]\b|-?\d*\.?\d+)/g;let x;while((x=re.exec(t))){m[+x[1]]=x[2]}return m}
+function snap(q){return{id:q.id,n:q.n,qn:q.qn,type:q.type,text:q.text,opts:q.opts,img:q.img,key:q.key,ref:q.ref,sec:q.sec,multi:q.multi,sol:q.sol,nopt:q.nopt}}
+function startTest(){const u=S.su,sel=u.qs.filter((q,i)=>u.sel[i]);if(!u.chap.trim())return toast('Enter a chapter name first');if(!sel.length)return toast('Select at least one question');
+ const km=parseKey(u.key),qs=sel.map(q=>{let k=km[q.n]!==undefined?km[q.n]:q.key;if(k!==undefined&&q.type=='mcq'){k=String(k).replace(/[\s()]/g,'').toUpperCase().replace(/[1-9]/g,d=>'ABCDEFGHI'[d-1]);if(!/^[A-M](,[A-M])*$/.test(k))k=undefined}return{...q,multi:q.multi||!!(k&&k.includes(',')),id:(u.pdfSig||u.pdfName||'pdf')+'#'+(q.sec||'')+(q.qn||q.n),key:k}});
+ const c=getChap(u.chap,u.subj);totUpd(c,u);save();beginRun(qs,u.tm=='auto'?autoSec(qs):Math.max(1,u.mins)*60,c,false)}
+function beginRun(qs,total,c,prac){S.qd=null;S.run={qs,ans:{},mk:{},cf:{},bm:{},tm:{},i:0,total,end:Date.now()+total*1000,left:total,qt0:Date.now(),pal:false,ck:c.k,chap:c.name,subj:c.subj,cfg:{...DB.set},prac};
+ clearInterval(window.TI);window.TI=setInterval(()=>{const R=S.run;if(!R)return;R.left=Math.round((R.end-Date.now())/1000);const e=$('#tm');if(e)e.textContent=fmt(R.left);if(R.left<=0){toast('Time is up');finish()}},1000);render()}
+const cpanel=(c,K,qs)=>{const secs=[...new Set(qs.map(q=>q.sec||''))];return`<div class="card"><b>Custom practice</b><label for="cps">Exercise / section</label><select id="cps"><option value="*">All</option>${secs.map(x=>`<option value="${esc(x)}">${esc(x||'Questions')}</option>`).join('')}</select><div class="row"><input id="cpa" type="number" min="1" placeholder="From Q"><input id="cpb" type="number" min="1" placeholder="To Q"><input id="cpn" type="number" min="1" placeholder="Random count"></div><p class="mu">Leave From and To empty for all. Fill Random count to pick that many at random from your range. Uses the ${KL[K]} questions of this tab.</p><div class="row"><button class="p" onclick="startCustom('${c.k}','${K}')">Start custom practice</button><button class="p" onclick="startCustom('${c.k}','${K}',1)">Start custom test</button></div></div>`};
+function startCustom(ck,K,t){const c=chByK(ck);if(!c)return;const sec=$('#cps').value,a=+$('#cpa').value||0,b=+$('#cpb').value||1e9,n=+$('#cpn').value||0,o=(x,y)=>(x.sec||'').localeCompare(y.sec||'')||(x.qn||x.n)-(y.qn||y.n);
+ let L=Object.values(c[K]).filter(q=>(sec=='*'||(q.sec||'')==sec)&&(q.qn||q.n)>=a&&(q.qn||q.n)<=b).sort(o);
+ if(n&&n<L.length){for(let i=L.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[L[i],L[j]]=[L[j],L[i]]}L=L.slice(0,n).sort(o)}
+ if(!L.length)return toast('No questions match that choice');beginRun(nm(L.map(q=>({...q}))),autoSec(L),c,!t)}
+function startPractice(ck,kind,t){const c=Object.values(DB.chap).find(x=>x.k==ck),qs=nm(Object.values(c[kind]).map(q=>({...q})));if(!qs.length)return;beginRun(qs,autoSec(qs),c,!t)}
+
+/* ---------- running a test ---------- */
+function rec(){const R=S.run;R.tm[R.i]=(R.tm[R.i]||0)+(Date.now()-R.qt0)/1000;R.qt0=Date.now()}
+const visit=i=>{rec();S.run.i=i;S.run.pal=false;render()};
+function vRun(){const R=S.run,i=R.i,q=R.qs[i],n=R.qs.length,T=q.type;
+ let h=`<div class="top"><span class="mu">Q ${i+1} of ${n}${q.sec?' - '+esc(q.sec)+(q.qn?' Q'+q.qn:''):(q.qn&&q.qn!==i+1?' (PDF Q'+q.qn+')':'')}${R.ck=='mixed'&&q._cn?' - '+esc(q._cn):''}</span><span class="tm" id="tm">${fmt(R.left)}</span></div>
+ <div class="card"><div class="top"><b>All questions</b><button onclick="S.run.big=!S.run.big;render()">${R.big?'Smaller':'Show all'}</button></div><div class="pg" style="grid-template-columns:repeat(8,1fr);${R.big?'':'max-height:22vh;'}overflow:auto">${R.qs.map((x,k)=>`<button class="${R.mk[k]?'mkd':R.ans[k]?'ans':''} ${k==i?'cur':''}" style="${R.bm[k]?'outline:2px dashed var(--ac);':''}" onclick="visit(${k})">${k+1}${R.mk[k]&&R.ans[k]?'&#10003;':''}</button>`).join('')}</div><div class="mu">Green: answered. Yellow: marked for review (&#10003; means answered too). Dashed outline: bookmarked. Plain: not answered. Blue outline: this question.</div></div>
+ <div class="card">${q.img?`<img class="qi" src="${q.img}" alt="Question">`:`<div style="white-space:pre-wrap">${esc(q.text)}</div>`}`;
+ if(T=='mcq')h+=(q.multi?'<div class="mu">More than one option may be correct. Tap all that apply.</div>':'')+'ABCDEFGHIJKLM'.slice(0,q.nopt||4).split('').map((L,k)=>`<button class="opt ${(q.multi?(R.ans[i]||'').split(',').includes(L):R.ans[i]==L)?'on':''}" onclick="pick('${L}')">${L}${q.opts&&!q.img?'. '+esc(q.opts[k]):''}</button>`).join('');
+ else if(T=='num')h+=`<div class="disp" aria-live="polite">${esc(R.ans[i]||'')||'<span class="mu">Type your answer</span>'}</div><div class="pad">${'789456123'.split('').map(d=>`<button onclick="kp('${d}')">${d}</button>`).join('')}<button onclick="kp('.')">.</button><button onclick="kp('0')">0</button><button onclick="kp('b')" aria-label="Backspace">&lt;</button></div><button onclick="kp('-')" style="width:100%">+/- sign</button>`;
+ else h+=`<input id="ti" value="${esc(R.ans[i]||'')}" placeholder="${T=='mtf'?'Type matches, e.g. A-Q, B-S':'Type your answer'}" oninput="S.run.ans[S.run.i]=this.value">`;
+ h+=`<div class="row"><span class="mu" style="flex:0 0 auto">Confidence</span>${seg(['Sure','Guess'],R.cf[i]=='sure'?0:R.cf[i]=='guess'?1:-1,'cf')}</div>
+ <div class="row"><button ${i?'':'disabled'} onclick="visit(${i-1})">Previous</button><button onclick="saveNext()">Save</button><button ${i<n-1?'':'disabled'} onclick="visit(${i+1})">Next</button></div>
+ <div class="row"><button class="${R.mk[i]?'on':''}" onclick="S.run.mk[${i}]=!S.run.mk[${i}];render()">Mark for review</button><button onclick="saveMark()">Save &amp; Mark</button><button onclick="delete S.run.ans[${i}];render()">Clear</button><button class="${R.bm[i]?'on':''}" onclick="S.run.bm[${i}]=!S.run.bm[${i}];render()">${R.bm[i]?'Bookmarked':'Bookmark'}</button></div>
+ <button class="p" onclick="submitT()">Submit test</button></div>`;return h}
+function saveMark(){const R=S.run;R.mk[R.i]=true;toast('Saved and marked for review');if(R.i<R.qs.length-1)visit(R.i+1);else render()}
+function saveNext(){const R=S.run;toast('Saved');if(R.i<R.qs.length-1)visit(R.i+1)}
+const pick=L=>{const R=S.run,q=R.qs[R.i];if(q.multi){const s=new Set((R.ans[R.i]||'').split(',').filter(Boolean));s.has(L)?s.delete(L):s.add(L);R.ans[R.i]=[...s].sort().join(',')}else R.ans[R.i]=R.ans[R.i]==L?'':L;render()};
+const cf=k=>{const R=S.run,v=k?'guess':'sure';R.cf[R.i]=R.cf[R.i]==v?'':v;render()};
+function kp(c){const R=S.run;let a=R.ans[R.i]||'';if(c=='b')a=a.slice(0,-1);else if(c=='.'){if(!a.includes('.'))a+=a?'.':'0.'}else if(c=='-')a=a[0]=='-'?a.slice(1):'-'+a;else a+=c;R.ans[R.i]=a;render()}
+function submitT(){const R=S.run,n=R.qs.length,at=R.qs.filter((q,k)=>R.ans[k]).length,un=n-at,mk=Object.values(R.mk).filter(Boolean).length;
+ let m='Are you sure you want to submit the test now?\n\nTotal questions: '+n+'\nAttempted: '+at+'\nUnattempted: '+un+'\nMarked for review: '+mk+'\nRemaining time: '+fmt(R.left);
+ if(R.left>0)m+='\n\nYou are submitting the test before the time is over.';
+ if(un)m+='\nYou have not attempted '+un+' questions. Are you sure you want to submit the test?';
+ if(confirm(m))finish()}
+function finish(){const R=S.run;if(!R)return;rec();clearInterval(window.TI);const c=Object.values(DB.chap).find(x=>x.k==R.ck),cfg=R.cfg;let sc=0;S.snaps={};
+ const rows=R.qs.map((q,i)=>{S.snaps[q.id]=snap(q);const a=R.ans[i],has=a!==undefined&&a!=='';let st='skip';
+  if(has){if(q.key==null||q.key==='')st='nokey';else{const ok=q.type=='mcq'?(q.multi?srt(a)==srt(q.key):a==q.key):q.type=='num'?Math.abs(parseFloat(a)-parseFloat(q.key))<=0.011:norm(a)==norm(q.key);st=ok?'right':'wrong'}}
+  if(st=='right')sc+=cfg.c;if(st=='wrong')sc-=q.type=='mcq'?cfg.w:cfg.nw;
+  const qc=(q._ck&&chByK(q._ck))||c,sn={...snap(q),d:(a!==''&&a!==undefined)?dk(Date.now()):((qc&&qc.all[q.id]&&qc.all[q.id].d)||'')};if(qc){const o=qc.all[q.id];if(o&&o.n)sn.n=o.n;if(st=='wrong')qc.wrong[q.id]=sn;qc.all[q.id]=sn;if(R.bm[i])qc.bm[q.id]=sn}
+  return{id:q.id,n:q.n,type:q.type,ans:has?a:'',key:q.key||q.ref||'',st,tm:Math.round(R.tm[i]||0),cf:R.cf[i]||'',bm:!!R.bm[i],rs:'',...(qc&&qc.k!==R.ck?{ck:qc.k}:{})}});
+ const t={id:Date.now(),cfg:{...cfg},ck:R.ck,chap:R.chap,subj:R.subj,rows,sc,max:R.qs.length*cfg.c,used:Math.round(R.total-Math.max(0,R.left)),total:R.total,prac:R.prac};
+ DB.tests.push(t);save();S.run=null;S.sum=t;S.su=freshSU();S.sub2=0;S.open={};render()}
+
+/* ---------- summary ---------- */
+const acc=t=>{const r=t.rows.filter(x=>x.st=='right').length,w=t.rows.filter(x=>x.st=='wrong').length;return r+w?Math.round(100*r/(r+w)):0};
+const slow=t=>{const a=t.rows.filter(x=>x.ans!==''&&x.ans!==undefined),m=a.length?a.reduce((s,x)=>s+x.tm,0)/a.length:0;return x=>x.st=='right'&&x.tm>1.5*m&&x.tm>20};
+function vSum(){const t=S.sum,n=k=>t.rows.filter(x=>x.st==k).length,sl=slow(t);let h=`<div class="top"><b>${esc(t.chap)} - ${new Date(t.id).toLocaleDateString()}</b><span><button onclick="delTest()">Delete test</button><button onclick="S.sum=null;render()">Close</button></span></div>`+seg(['Overview','Questions'],S.sub2,'setSub2');
+ if(!S.sub2){const sc=t.rows.filter(x=>x.st=='right'||x.st=='wrong'),ans=t.rows.filter(x=>x.ans!==''&&x.ans!==undefined),av=ans.length?ans.reduce((s,x)=>s+x.tm,0)/ans.length:0,slw=t.rows.filter(sl),sure=t.rows.filter(x=>x.cf=='sure'&&x.st=='wrong'),big=ans.slice().sort((a,b)=>b.tm-a.tm).slice(0,5),nf=sc.filter(x=>!x.cf).length,
+   lk=(x,s)=>`<button style="min-height:30px;padding:2px 10px;font-size:13px" onclick="jumpQ(${t.rows.indexOf(x)})">Q${x.n}${s?' - '+s:''}</button>`,
+   cs=k=>{const a=sc.filter(x=>x.cf==k),r=a.filter(x=>x.st=='right').length;return a.length?pc(r,a.length-r)+' ('+r+' of '+a.length+' right)':'none marked'},
+   wr=t.rows.map((x,i)=>[x,i]).filter(p=>p[0].st=='wrong');
+  h+=`<div class="grid card"><div><div class="mu">Score</div><div class="big">${t.sc} / ${t.max}</div></div><div><div class="mu">Accuracy</div><div class="big">${acc(t)}%</div></div><div><div class="mu">Time used</div><div class="big">${Math.round(t.used/60)} / ${Math.round(t.total/60)} min</div></div><div><div class="mu">Right / wrong / skipped</div><div class="big">${n('right')} / ${n('wrong')} / ${n('skip')}</div></div></div>
+  <div class="card"><b>Time per question</b><p class="mu">Average on the questions you answered: <b>${fT(av)}</b>. The time of every question is also in the Questions tab.</p><div class="mu">Slowest questions</div><div class="chips">${big.length?big.map(x=>lk(x,fT(x.tm))).join(''):'<span class="mu">none</span>'}</div><div class="mu">Right but slow (over 1.5 times your average and over 20 s)</div><div class="chips">${slw.length?slw.map(x=>lk(x,fT(x.tm))).join(''):'<span class="mu">none</span>'}</div></div>
+  <div class="card"><b>Confidence</b><p class="mu">When sure: ${cs('sure')}<br>When guessing: ${cs('guess')}<br>Not marked: ${nf} scored question${nf==1?'':'s'}</p><div class="mu">Sure but wrong (most dangerous)</div><div class="chips">${sure.length?sure.map(x=>lk(x)).join(''):'<span class="mu">none</span>'}</div></div>
+  <div class="card"><b>Why were they wrong?</b>${wr.length?`<p class="mu" id="rsl">${esc(rsLine(t))}</p>`+wr.map(p=>`<div class="row"><span style="flex:0 0 auto"><b>Q${p[0].n}</b> <span class="mu">${fT(p[0].tm)}${p[0].cf?' - '+p[0].cf:''}</span></span><select aria-label="Mistake reason for Q${p[0].n}" onchange="rsn(${p[1]},this.value)"><option value="">Why wrong?</option>${RS.map(r=>`<option${p[0].rs==r?' selected':''}>${r}</option>`).join('')}</select></div>`).join(''):'<p class="mu">No wrong questions in this test.</p>'}</div>${n('nokey')?`<div class="card"><p class="mu">Answered without a key (not scored): ${n('nokey')}</p></div>`:''}`}
+ else h+=t.rows.map((x,i)=>qRow(t,x,i)).join('');
+ return h}
+const setSub2=i=>{S.sub2=i;render()};
+const chapOf=(t,x)=>Object.values(DB.chap).find(c=>c.k==((x&&x.ck)||t.ck));
+const snapOf=(t,x)=>{const c=chapOf(t,x);return S.snaps[x.id]||(c&&(c.all[x.id]||c.wrong[x.id]||c.bm[x.id]))};
+function rsn(i,v){S.sum.rows[i].rs=v;save();const e=$('#rsl');if(e)e.textContent=rsLine(S.sum)}
+function bmT(i){const t=S.sum,x=t.rows[i],c=chapOf(t,x);if(!c)return;if(x.bm){delete c.bm[x.id];x.bm=false}else{const s=snapOf(t,x);if(!s)return;c.bm[x.id]=s;x.bm=true}save();render()}
+
+
+const QUOTES=['Roz ka chhota practice hi bada result banata hai.','Galti wahi sudharti hai jo likhi jaye. Aaj ki galti kal ka marks.','Jo aaj kar liya, wo kal ka bojh kam karta hai.','Consistency beats intensity.','Ek question aur. Phir ek aur.','Dheere chalo, par ruko mat.','Hard work is the only shortcut.','Tumhari mehnat tumhe dhokha nahi degi.','Aaj ka din bhi ginti me aata hai.','Mushkil question hi tumhe tez banata hai.','Focus karo. Baaki sab shor hai.','Progress, not perfection.','Har galat answer ek seekh hai.','Jab man na kare, tab ek question karo.','Discipline motivation se zyada chalta hai.','Small steps every day.','Revision hi yaad ko pakka karta hai.','Aaj ke 100 question, kal ka confidence.','Tum pehle se behtar ho jo kal the.','Believe in your preparation.','Time sabke paas barabar hai. Use kaise karte ho, wahi farak hai.','Sapne dekhne se nahi, practice se poore hote hain.','Kal ki chinta chhodo, aaj ka test do.','Ek ek chapter, ek ek jeet.','Jo gir ke uthta hai wahi topper banta hai.','Practice makes you faster and calmer.','Aaj thoda aur. Bas thoda aur.','Your future self is watching.','Question chhote hain, sapne bade.','Shuru karo, baaki raste khud ban jaate hain.','Be proud of every day you showed up.'];
+const exams=()=>{const p=DB.profile;if(!Array.isArray(p.exams))p.exams=p.target?String(p.target).split(',').map(x=>({n:x.trim(),d:''})).filter(e=>e.n):[];return p.exams};
+const exSync=()=>{DB.profile.target=exams().map(e=>e.n).filter(Boolean).join(', ');save()};
+const exAdd=n=>{exams().push({n,d:''});exSync();render()},exSet=(i,f,v)=>{exams()[i][f]=v;exSync()},exDel=i=>{exams().splice(i,1);exSync();render()};
+const examEd=()=>`<label>Exams you are preparing for</label>${exams().map((e,i)=>`<div class="row"><input aria-label="Exam name" value="${esc(e.n)}" placeholder="Exam" oninput="exSet(${i},'n',this.value)"><input aria-label="Exam date" type="date" value="${esc(e.d||'')}" onchange="exSet(${i},'d',this.value);render()"><button aria-label="Remove exam" onclick="exDel(${i})">x</button></div>`).join('')}<div class="chips">${['JEE Main (Jan)','JEE Main (Apr)','JEE Advanced','NEET'].map(n=>`<button onclick="exAdd('${n}')">+ ${n}</button>`).join('')}<button onclick="exAdd('')">+ Other exam</button></div><p class="mu">Give an exam a date to see its days-left countdown at the top. Exams without a date show no countdown.</p>`;
+const cdBlock=()=>{const t0=new Date();t0.setHours(0,0,0,0);const L=exams().filter(e=>e.n&&e.d).map(e=>({n:e.n,k:Math.round((new Date(e.d+'T00:00')-t0)/864e5)})).filter(e=>e.k>=0).sort((a,b)=>a.k-b.k);if(!L.length)return'';return`<div class="hs" role="group" aria-label="Exam countdown">${L.map(e=>`<div><div class="mu" style="font-size:12px;line-height:1.3">${esc(e.n)}</div><div class="big" style="font-size:20px">${e.k==0?'Today':e.k+(e.k==1?' day':' days')}</div></div>`).join('')}</div><div role="separator" style="height:1px;background:var(--bd);margin:10px 0"></div>`};
+const hdr=()=>{const d=Math.floor(Date.now()/864e5),q=QUOTES[d%QUOTES.length],s=stats(),B=(l,v)=>`<div><div class="mu" style="font-size:12px;line-height:1.3">${l}</div><div class="big" style="font-size:20px">${v}</div></div>`;return`<div class="card" style="margin-bottom:8px"><div style="display:flex;gap:12px;align-items:center"><svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6" fill="var(--ac)"/><path d="M7.5 12.5l3 3 6-7" stroke="var(--bg)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b style="font-size:1.25em">Test Creator</b><div class="mu" style="font-size:.9em">${esc(q)}</div></div></div><div role="separator" style="height:1px;background:var(--bd);margin:10px 0"></div>${cdBlock()}<div class="hs" role="group" aria-label="Your progress">${B('Tests taken',s.tests)}${B('Overall accuracy',s.acc+'%')}${B('Wrong questions in the bank',s.wrong)}${B('Bookmarked questions',s.bm)}</div><div class="mu" id="syl" style="font-size:12px;margin-top:8px">${syncLine()}</div></div>`};
+const rngS=a=>{a=[...new Set(a)].filter(x=>x>0).sort((x,y)=>x-y);if(!a.length)return'';const o=[];let s=a[0],p=a[0];for(let i=1;i<=a.length;i++){if(a[i]===p+1){p=a[i];continue}o.push(s==p?''+s:s+'-'+p);s=a[i];p=a[i]}return o.join(', ')};
+const srt=s=>String(s||'').split(',').map(x=>x.trim().toUpperCase()).filter(Boolean).sort().join(',');
+function selQs(){const u=S.su,sel=u.qs.filter((q,i)=>u.sel[i]),km=parseKey(u.key);return sel.map(q=>{let k=km[q.n]!==undefined?km[q.n]:q.key;if(k!==undefined&&q.type=='mcq'){k=String(k).replace(/[\s()]/g,'').toUpperCase().replace(/[1-9]/g,d=>'ABCDEFGHI'[d-1]);if(!/^[A-M](,[A-M])*$/.test(k))k=undefined}return{...q,multi:q.multi||!!(k&&k.includes(',')),id:(u.pdfSig||u.pdfName||'pdf')+'#'+(q.sec||'')+(q.qn||q.n),key:k}})}
+function totUpd(c,u){c.tot=c.tot||{};u.qs.forEach(q=>{const s=q.sec||'';c.tot[s]=Math.max(c.tot[s]||0,q.qn||0)})}
+function bankAll(c,fl){const u=S.su,km=parseKey(u.key);let n=0;u.qs.forEach(q=>{if(fl&&!fl(q))return;let k=km[q.n]!==undefined?km[q.n]:q.key;if(k!==undefined&&q.type=='mcq'){k=String(k).replace(/[\s()]/g,'').toUpperCase().replace(/[1-9]/g,d=>'ABCDEFGHI'[d-1]);if(!/^[A-M](,[A-M])*$/.test(k))k=undefined}
+ const id=(u.pdfSig||u.pdfName||'pdf')+'#'+(q.sec||'')+(q.qn||q.n),o=c.all[id];if(o){if(k!==undefined&&o.key===undefined)o.key=k;return}
+ c.all[id]={...snap({...q,id,key:k,multi:q.multi||!!(k&&k.includes(','))}),d:''};n++});return n}
+function saveBank(all){const u=S.su;if(!u.chap.trim())return toast('Enter a chapter name first');
+ if(all){if(!u.qs.length)return toast('Upload a PDF first');const c=getChap(u.chap,u.subj);totUpd(c,u);const n=bankAll(c);save();return toast(n+' new questions saved to the bank ('+u.qs.length+' in this PDF)')}const qs=selQs();if(!qs.length)return toast('Select at least one question');const c=getChap(u.chap,u.subj);totUpd(c,u);qs.forEach(q=>{const o=c.all[q.id];c.all[q.id]={...snap(q),d:o?o.d:''}});save();toast(qs.length+' questions saved to the bank')}
+function copyQs(){const u=S.su,d=u.qs.map(q=>({sec:q.sec,qn:q.qn,type:q.type,multi:q.multi||undefined,text:q.text,opts:q.opts,key:q.key,ref:q.ref,image:q.img?true:undefined,solutionImage:q.sol?true:undefined,flag:q.flag||undefined})),t=JSON.stringify(d);
+ const fb=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Copied '+d.length+' questions')}catch(e){toast('Could not copy')}a.remove()};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>toast('Copied '+d.length+' questions'),fb);else fb()}
+function applyQs(go){const u=S.su;let t=($('#pq').value||'').trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim(),d;try{d=JSON.parse(t)}catch(e){return toast('That is not valid data. Paste the whole copied list.')}
+ if(d&&!Array.isArray(d)&&Array.isArray(d.questions))d=d.questions;if(!Array.isArray(d)||!d.length)return toast('Paste the full list of questions');
+ if(!u.pdfName&&!u.pdfSig)u.pdfSig='paste_'+Date.now().toString(36);let up=0,add=0;
+ d.forEach((x,i)=>{if(!x||typeof x!='object')return;const qn=x.qn!=null?x.qn:i+1;let q=u.qs.find(y=>(y.sec||'')==(x.sec||'')&&y.qn==qn);
+  if(!q){q={n:u.qs.length+1,sec:x.sec||'',qn,type:x.type||(x.opts?'mcq':'num')};u.qs.push(q);u.sel[u.qs.length-1]=1;add++}else up++;
+  ['type','text','opts','key','ref'].forEach(k=>{if(x[k]!==undefined)q[k]=x[k]});
+  if(q.key!==undefined&&q.key!==null)q.key=String(q.key);if(q.type=='mcq'){if(q.key)q.key=q.key.replace(/\s/g,'').toUpperCase();q.nopt=x.nopt||(q.opts&&q.opts.length)||q.nopt||4}
+  q.multi=!!x.multi||!!(q.type=='mcq'&&q.key&&q.key.includes(','));q.flag=''});
+ toast(add+' added, '+up+' updated');render();if(go&&add+up)setTimeout(startTest,50)}
+function copyFmt(){const t='[{"qn":1,"type":"mcq","text":"Question text","opts":["Option A","Option B","Option C","Option D"],"key":"B"},{"qn":2,"type":"num","text":"Numerical question","key":"4.5"},{"qn":3,"type":"mcq","multi":true,"text":"More than one correct","opts":["a","b","c","d"],"key":"A,C"}]';
+ const fb=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Example copied')}catch(e){toast('Could not copy')}a.remove()};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>toast('Example copied'),fb);else fb()}
+const insMiss=(i,m)=>{S.qd=null;const u=S.su,q=u.qs[i];u.retry=null;u.retrySol=null;u.pend=null;u.pbox=null;u.ins={after:i,qn:m,sec:q.sec||''};u.mode='crop';u.draw=true;u.pg=q.p||1;u.msg='Crop Q'+m+': drag a box over it and its options.';render();toCrop()};
+const retrySol=i=>{S.qd=null;const u=S.su,q=u.qs[i];u.mode='crop';u.retry=null;u.ins=null;u.pend=null;u.pbox=null;u.retrySol=i;u.draw=true;u.pg=q.p||1;u.msg='Solution for Q'+q.n+': drag a box over its solution.';render();toCrop()};
+/* ---- bank grouping ---- */
+const bankView=i=>{S.bank.view=i;render()};
+const rowB=(c,K,q,L)=>`<div class="q" style="flex-wrap:wrap"><b>${q.sec?esc(q.sec.replace('Exercise','Ex'))+' ':''}${q.type=='mcq'?(q.multi?'Multi':'MCQ'):q.type=='num'?'Num':'Q'}${q.qn?' '+q.qn:''}</b><span class="sn" data-id="${esc(q.id)}" style="cursor:pointer" onclick="qdB('${c.k}','${K}',${L},this.dataset.id)">${snip(q)}</span><button data-id="${esc(q.id)}" onclick="S.bs=S.bs==this.dataset.id?null:this.dataset.id;render()">${q.sol||q.ref?'Solution':'Add solution'}</button>${S.bs==q.id?solBox(c,q):''}</div>`;
+const solBox=(c,q)=>`<div style="flex:1 1 100%">${q.sol?`<img class="qi" src="${q.sol}" alt="Solution"><button data-id="${esc(q.id)}" onclick="bSolDel('${c.k}',this.dataset.id)">Remove solution picture</button>`:''}<label>Solution text</label><textarea rows="3" data-id="${esc(q.id)}" onchange="bSolTxt('${c.k}',this.dataset.id,this.value)">${esc(q.ref||'')}</textarea><label>Solution picture: choose a file, or paste a screenshot in the box</label><input type="file" accept="image/*" onchange="bSolImg('${c.k}','${esc(q.id).replace(/'/g,'&#39;')}',this.files[0])"><div contenteditable="true" onpaste="bSolPaste(event,'${c.k}','${esc(q.id).replace(/'/g,'&#39;')}')" class="mu" style="border:1px dashed var(--bd);border-radius:8px;padding:8px;min-height:40px;margin-top:6px">Click here, then paste (Ctrl+V)</div></div>`;
+function bSolSet(ck,id,f,v){const c=chByK(ck);if(!c)return;['all','wrong','bm'].forEach(K=>{if(c[K][id]){if(v)c[K][id][f]=v;else delete c[K][id][f]}});save();render();toast('Solution saved')}
+const bSolTxt=(ck,id,v)=>bSolSet(ck,id,'ref',v.trim()),bSolDel=(ck,id)=>bSolSet(ck,id,'sol','');
+function bSolImg(ck,id,f){if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1000/im.width),cv=document.createElement('canvas');cv.width=im.width*k;cv.height=im.height*k;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(im,0,0,cv.width,cv.height);bSolSet(ck,id,'sol',cv.toDataURL('image/jpeg',.6))};im.src=r.result};r.readAsDataURL(f)}
+function bSolPaste(e,ck,id){const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(x=>x.type&&x.type.indexOf('image/')==0);if(!it)return;e.preventDefault();bSolImg(ck,id,it.getAsFile())}
+const secRng=qs=>{const m={};qs.forEach(q=>{(m[q.sec||'']=m[q.sec||'']||[]).push(q.qn||0)});return Object.entries(m).map(([s,a])=>(s||'Questions')+': '+(rngS(a)?'Q'+rngS(a):a.length+' q')).join(' | ')};
+function bankBody(c,K,qs){S.bl=[];const v=S.bank.view||0;let h=seg(['By date','By exercise','Plain'],v,'bankView');
+ if(K=='all'&&c.tot){const done={};Object.values(c.all).forEach(q=>{if(q.d)(done[q.sec||'']=done[q.sec||'']||new Set()).add(q.qn)});const rem=Object.entries(c.tot).filter(([s,t])=>t>0).map(([s,t])=>{const a=[];for(let i=1;i<=t;i++)if(!(done[s]&&done[s].has(i)))a.push(i);return a.length?(s||'Questions')+': Q'+rngS(a):''}).filter(Boolean);h+=`<p class="mu"><b>Still to practise:</b> ${rem.length?rem.join(' | '):'all done'}</p>`}
+ if(v==0){const g={};qs.forEach(q=>(g[q.d||'']=g[q.d||'']||[]).push(q));Object.keys(g).sort().reverse().forEach(d=>{h+=`<p class="mu"><b>${d?new Date(d).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'Saved, not practised yet'}</b><br>${esc(secRng(g[d]))}</p><div class="list">${rowsB(c,K,g[d],0)}</div>`})}
+ else if(v==1){h+=exTiles(c,K,qs)}
+ else h+=`<div class="list">${rowsB(c,K,qs,0)}</div>`;return h}
+
+function qRow(t,x,i){const s=snapOf(t,x),op=S.open&&S.open[i],sl=slow(t),T={right:'Right',wrong:'Wrong',skip:'Skipped',nokey:'No key'}[x.st];
+ let b='';if(op&&s){const ks=srt(x.key).split(','),us=srt(x.ans).split(',');
+  b+=`<div style="margin:8px 0">${s.img?`<img class="qi" src="${s.img}" alt="Question">`:esc(s.text||'')}</div>`;
+  if(s.type=='mcq'||s.opts)b+=(s.opts&&!s.img?s.opts:Array(s.nopt||4).fill('')).map((o,k)=>{const L='ABCDEFGHIJKLM'[k],ok=ks.includes(L),me=us.includes(L);return`<div class="q" style="${ok?'border-color:var(--ok);background:var(--okb);font-weight:600':(me?'border-color:var(--no);background:var(--nob)':'')}"><b>${L}</b><span class="sn">${esc(o)}</span>${ok?'<span class="chip right">Correct</span>':''}${me&&!ok?'<span class="chip wrong">Yours</span>':''}${me&&ok?'<span class="chip right">Yours</span>':''}</div>`}).join('');
+  else b+=`<div class="mu">Correct: <b>${esc(x.key||'-')}</b></div>`;
+  if(s.sol)b+=`<div class="mu" style="margin-top:6px">Solution</div><img class="qi" src="${s.sol}" alt="Solution">`;
+  if(s.ref&&s.ref!==x.key)b+=`<div class="card"><b>Answer / solution</b><div class="mu">${esc(s.ref)}</div></div>`;
+  b+=`<label>Correct answer (change it if the PDF was read wrongly)</label><input value="${esc(x.key||'')}" data-i="${i}" onchange="reKey(${i},this.value)">`}
+ return`<div class="card" id="qr${i}"><div class="top" style="cursor:pointer" onclick="S.open=S.open||{};S.open[${i}]=!S.open[${i}];render()"><b>Q${x.n}${s&&s.sec?' ('+esc(s.sec.replace('Exercise','Ex'))+' Q'+(s.qn||'')+')':''}</b>${x.ck?'<span class="mu">'+esc((chapOf(t,x)||{}).name||'Deleted chapter')+'</span>':''}<span><span class="chip" style="border:1px solid var(--bd)">${fT(x.tm)}</span><span class="chip ${x.st}">${T}</span>${sl(x)?'<span class="chip skip">Slow</span>':''} <span class="mu">${op?'&#9652;':'&#9662;'}</span></span></div>
+ <div class="mu">Your answer: ${esc(x.ans||'-')} - Correct: ${esc(x.key||'-')}${x.cf?' - '+x.cf:''}</div>${b}
+ <div class="row">${x.st=='wrong'?`<select aria-label="Mistake reason" onchange="rsn(${i},this.value)"><option value="">Why wrong?</option>${RS.map(r=>`<option${x.rs==r?' selected':''}>${r}</option>`).join('')}</select>`:''}${s?`<button class="${x.bm?'on':''}" onclick="bmT(${i})">${x.bm?'Bookmarked':'Bookmark'}</button>`:''}</div></div>`}
+function reKey(i,v){const t=S.sum,x=t.rows[i],c=chapOf(t,x),s=snapOf(t,x);v=String(v).trim();const mc=s&&s.type=='mcq';if(mc)v=mcqKey(v);x.key=v||undefined;
+ if(c)['all','wrong','bm'].forEach(K=>{if(c[K][x.id])c[K][x.id].key=x.key});if(S.snaps[x.id])S.snaps[x.id].key=x.key;
+ const cfg=t.cfg||DB.set;if(x.ans===''||x.ans===undefined)x.st='skip';else if(x.key===undefined)x.st='nokey';else x.st=((mc&&s.multi)?srt(x.ans)==srt(x.key):String(x.ans).trim().toLowerCase()==String(x.key).trim().toLowerCase())?'right':'wrong';
+ t.sc=t.rows.reduce((a,r)=>a+(r.st=='right'?cfg.c:r.st=='wrong'?-(r.type=='mcq'?cfg.w:cfg.nw):0),0);
+ if(c&&s&&x.st=='wrong')c.wrong[x.id]=c.all[x.id]||s;if(c&&x.st=='right')delete c.wrong[x.id];save();render();toast('Answer updated and score recalculated')}
+/* ---------- v14: question detail page ---------- */
+const qdIc='<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
+const qdOpen=i=>{S.qd={src:'su',i,gap:1,grid:false};render();scrollTo(0,0)};
+const qdB=(ck,K,L,id)=>{const l=S.bl[L];if(!l)return;S.qd={src:'b',ck,K,ids:l.ids,gap:l.gap,i:Math.max(0,l.ids.indexOf(id)),grid:false};render();scrollTo(0,0)};
+const qdGo=k=>{S.qd.i=k;S.qd.grid=false;render();scrollTo(0,0)};
+function qdItems(){const d=S.qd;if(d.src=='su'){const u=S.su,km=parseKey(u.key);return u.qs.map((q,i)=>({q,i,key:km[q.n]!==undefined?km[q.n]:q.key,lab:q.n}))}
+ const c=chByK(d.ck);if(!c)return[];const qs=d.ids.map(id=>c[d.K][id]).filter(Boolean),one=new Set(qs.map(q=>q.sec||'')).size==1;
+ return qs.map((q,i)=>({q,i,key:q.key,lab:one&&q.qn?q.qn:i+1}))}
+function qdProb(it,arr,gap){const q=it.q,p=[];
+ if(it.key===undefined||String(it.key)==='')p.push('No answer key found');
+ if(q.type=='mcq'&&q.opts&&!q.img){const got=q.opts.filter(x=>x&&String(x).trim()).length,need=q.nopt||4;if(got<need)p.push('Only '+got+' of '+need+' options found')}
+ if(q.flag)p.push(q.flag);
+ if(q.miss&&q.miss.length)p.push('May also contain '+q.miss.map(m=>'Q'+m).join(', '));
+ if(!q.img&&!(q.text||'').trim())p.push('Empty question');
+ if(gap&&q.qn){const pv=arr.slice(0,it.i).reverse().find(x=>(x.q.sec||'')==(q.sec||'')&&x.q.qn);if(pv&&q.qn-pv.q.qn>1)p.push('Numbering gap: Q'+pv.q.qn+' then Q'+q.qn)}
+ return p}
+function imgFile(f,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1000/im.width),cv=document.createElement('canvas');cv.width=im.width*k;cv.height=im.height*k;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(im,0,0,cv.width,cv.height);cb(cv.toDataURL('image/jpeg',.6))};im.src=r.result};r.readAsDataURL(f)}
+const suSolImg=(i,f)=>{if(f)imgFile(f,v=>{S.su.qs[i].sol=v;render();toast('Solution picture added')})};
+const suSolPaste=(e,i)=>{const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(x=>x.type&&x.type.indexOf('image/')==0);if(!it)return;e.preventDefault();suSolImg(i,it.getAsFile())};
+const PB='border:1px dashed var(--bd);border-radius:8px;padding:8px;min-height:40px;margin-top:6px';
+const qdSolSu=i=>{const q=S.su.qs[i];return`<div class="card"><b>Solution</b>${q.sol?`<img class="qi" src="${q.sol}" alt="Solution"><button onclick="delete S.su.qs[${i}].sol;render()">Remove solution picture</button>`:''}${!q.sol&&!q.ref?'<div class="mu">No solution added yet.</div>':''}<label>Solution text</label><textarea rows="3" oninput="S.su.qs[${i}].ref=this.value">${esc(q.ref||'')}</textarea><label>Solution picture: choose a file, or paste a screenshot in the box</label><input type="file" accept="image/*" onchange="suSolImg(${i},this.files[0])"><div contenteditable="true" onpaste="suSolPaste(event,${i})" class="mu" style="${PB}">Click here, then paste (Ctrl+V)</div></div>`};
+function bFld(ck,id,f,v){const c=chByK(ck);if(!c)return;['all','wrong','bm'].forEach(K=>{const q=c[K][id];if(!q)return;q[f]=v;if(f=='nopt'&&q.opts){q.opts=q.opts.slice(0,v);while(q.opts.length<v)q.opts.push('')}});save();render()}
+function qdEditB(d,q){const ck=d.ck,id=esc(q.id),isM=q.type=='mcq',nO=q.nopt||4,c=chByK(ck);
+ return`<div class="card">${q.img?`<img class="qi" src="${q.img}" alt="Question">`:`<div style="white-space:pre-wrap">${esc(q.text||'')}</div>`+(q.opts?q.opts.map((o,k)=>`<div class="mu">${'ABCDEFGHIJKLM'[k]}. ${esc(o)}</div>`).join(''):'')}
+ <label>Type</label><select data-id="${id}" onchange="bFld('${ck}',this.dataset.id,'type',this.value)">${[['mcq','MCQ'],['num','Numerical'],['mtf','Match'],['sub','Written']].map(o=>`<option value="${o[0]}"${q.type==o[0]?' selected':''}>${o[1]}</option>`).join('')}</select>
+ ${isM?`<label>Number of options</label><select data-id="${id}" onchange="bFld('${ck}',this.dataset.id,'nopt',+this.value)">${[2,3,4,5,6,7,8,9,10,11,12,13].map(n=>`<option${n==nO?' selected':''}>${n}</option>`).join('')}</select>`:''}
+ <label><input type="checkbox" data-id="${id}" ${q.multi?'checked':''} onchange="bFld('${ck}',this.dataset.id,'multi',this.checked)"> Multiple correct answers</label>
+ <label>Correct answer ${isM?'(letters like B or B,C)':q.type=='num'?'(number)':'(text)'}</label><input value="${esc(q.key||'')}" data-id="${id}" onchange="mgKey('${ck}',this.dataset.id,this.value);render()"><div class="row"><button data-id="${id}" onclick="qSearchQ(chByK('${ck}').all[this.dataset.id]||{})">Search Google</button><button data-id="${id}" onclick="qCopyQ(chByK('${ck}').all[this.dataset.id]||{})">Copy for AI</button></div>
+ <p class="mu">Re-crop and solution crop need the original PDF, which the bank does not keep. Do those from Test setup with the PDF open.</p></div>
+ <div class="card"><b>Solution</b>${!q.sol&&!q.ref?'<div class="mu">No solution added yet.</div>':''}${solBox(c,q)}</div>`}
+function vQD(){const d=S.qd,arr=qdItems();if(!arr.length){S.qd=null;return'<div class="card mu">Nothing to show.</div>'}
+ d.i=Math.max(0,Math.min(d.i,arr.length-1));const it=arr[d.i],q=it.q,N=arr.length,pr=arr.map(x=>qdProb(x,arr,d.gap)),cur=pr[d.i].filter(x=>!(d.src=='su'&&(x==q.flag||x.indexOf('May also contain')==0)));
+ let h=`<div class="top"><button onclick="S.qd=null;render()">Back</button><span class="mu">${d.i+1} of ${N}</span><span><button ${d.i?'':'disabled'} onclick="qdGo(${d.i-1})">Previous</button> <button ${d.i<N-1?'':'disabled'} onclick="qdGo(${d.i+1})">Next</button> <button aria-label="All questions" class="${d.grid?'on':''}" onclick="S.qd.grid=!S.qd.grid;render()">${qdIc}</button></span></div>`;
+ if(d.grid)h+=`<div class="card"><b>All questions</b><div class="pg" style="grid-template-columns:repeat(6,1fr)">${arr.map((x,k)=>`<button title="${esc(pr[k].join('; '))}" class="${k==d.i?'cur':''}" style="aspect-ratio:1;padding:0;${pr[k].length?'border:2px solid var(--wn);background:var(--wnb);':''}" onclick="qdGo(${k})">${x.lab}</button>`).join('')}</div><div class="mu"><span style="display:inline-block;width:14px;height:14px;vertical-align:middle;border:2px solid var(--wn);background:var(--wnb);border-radius:4px"></span> Highlighted: this question has a problem (no answer key, too few options, cut or merged crop, numbering gap, or a warning from reading the PDF). Blue outline: the one you are on.</div></div>`;
+ h+=`<div class="card"><b>Q${it.lab}${q.sec?' ('+esc(q.sec)+' Q'+(q.qn||'')+')':''}${d.src=='b'?' - '+esc((chByK(d.ck)||{}).name||''):''}</b>${cur.length?`<div class="card" style="border-color:var(--wn);background:var(--wnb)"><b>Check this one</b>${cur.map(x=>`<div class="mu">${esc(x)}</div>`).join('')}</div>`:''}<div style="margin-top:6px"><b>Answer (correct key):</b> ${esc(it.key===undefined||String(it.key)===''?'not found':String(it.key))}</div>${d.src=='su'&&(q.flag||(q.miss&&q.miss.length))?`<button onclick="S.su.qs[${it.i}].flag='';S.su.qs[${it.i}].miss=[];render()">Mark as checked</button>`:''}</div>`;
+ return h+(d.src=='su'?edCard(S.su,true,it.i)+qdSolSu(it.i):qdEditB(d,q))}
+/* ---------- v14: save from test setup ---------- */
+function saveSec(k){const u=S.su;if(!u.chap.trim())return toast('Enter a chapter name first');const s=(u.secs||[])[k];if(s===undefined)return;const c=getChap(u.chap,u.subj);c.tot=c.tot||{};u.qs.forEach(q=>{if(q.sec==s)c.tot[s]=Math.max(c.tot[s]||0,q.qn||0)});const n=bankAll(c,q=>q.sec==s);save();toast(n+' new questions saved from '+s+' to '+c.name)}
+/* ---------- v14: bank exercise tiles ---------- */
+const rom=s=>{const m={I:1,V:5,X:10,L:50,C:100};let t=0,p=0;for(const ch of s.toUpperCase().split('').reverse()){const v=m[ch];if(!v)return NaN;t+=v<p?-v:v;p=Math.max(p,v)}return t};
+const secN=s=>{const t=(s.match(/(\d+|[IVXLC]+)\s*$/i)||[])[1];return t?(/^\d+$/.test(t)?+t:rom(t)):NaN};
+const exList=qs=>[...new Set(qs.map(q=>q.sec||''))].sort((a,b)=>{const x=secN(a),y=secN(b);return isNaN(x)||isNaN(y)?a.localeCompare(b):x-y});
+const ordQ=(x,y)=>(x.qn||x.n)-(y.qn||y.n);
+const rowsB=(c,K,arr,gap)=>{S.bl.push({ids:arr.map(q=>q.id),gap:gap&&K=='all'});const L=S.bl.length-1;return arr.map(q=>rowB(c,K,q,L)).join('')};
+const exCtx=()=>{const b=S.bank,c=chByK(b.ck);return c?{c,K:b.kind,qs:Object.values(c[b.kind]),b}:null};
+function exTiles(c,K,qs){const ss=exList(qs),b=S.bank;if(!ss.length)return'';
+ let h='<div style="display:grid;gap:8px;margin-top:8px">'+ss.map((s,k)=>{const n=qs.filter(q=>(q.sec||'')==s).length,op=b.ex==c.k+'|'+s;return`<div class="card" style="margin:0${op?';border-color:var(--ac)':''}"><div class="top" style="cursor:pointer" onclick="exOpen(${k})"><b>${esc(s||'Questions')} questions</b><span class="mu">${n} ${op?'&#9652;':'&#9662;'}</span></div><div class="row"><button class="p" onclick="exStart(${k})">Practice</button><button class="p" onclick="exStart(${k},1)">Test</button><button class="${b.cu==c.k+K?'on':''}" onclick="exCust()">Customize</button></div></div>`}).join('')+'</div>';
+ if(b.cu==c.k+K)h+=`<div class="card"><b>Customize</b><p class="mu">For each exercise give a From-To range, a Random count, or both (random from your range). Leave an exercise empty to skip it.</p>${ss.map((s,k)=>`<label>${esc(s||'Questions')} (${qs.filter(q=>(q.sec||'')==s).length})</label><div class="row"><input id="cxa${k}" type="number" min="1" placeholder="From Q"><input id="cxb${k}" type="number" min="1" placeholder="To Q"><input id="cxn${k}" type="number" min="1" placeholder="Random count"></div>`).join('')}<div class="row"><button class="p" onclick="exCustGo()">Start custom practice</button><button class="p" onclick="exCustGo(1)">Start custom test</button></div></div>`;
+ const s=ss.find(s=>b.ex==c.k+'|'+s);if(s!==undefined){const L=qs.filter(q=>(q.sec||'')==s).sort(ordQ);h+=`<p class="mu"><b>${esc(s||'Questions')}</b>: ${esc(rngS(L.map(q=>q.qn||0))?'Q'+rngS(L.map(q=>q.qn||0)):L.length+' q')}</p><div class="list">${rowsB(c,K,L,1)}</div>`}
+ return h}
+function exOpen(k){const x=exCtx();if(!x)return;const key=x.c.k+'|'+exList(x.qs)[k];x.b.ex=x.b.ex==key?null:key;render()}
+function exCust(){const x=exCtx();if(!x)return;const key=x.c.k+x.K;x.b.cu=x.b.cu==key?null:key;render()}
+function exStart(k,t){const x=exCtx();if(!x)return;const s=exList(x.qs)[k],L=x.qs.filter(q=>(q.sec||'')==s).sort(ordQ);if(!L.length)return toast('No questions in this exercise');beginRun(nm(L.map(q=>({...q}))),autoSec(L),x.c,!t)}
+function exCustGo(t){const x=exCtx();if(!x)return;const out=[];exList(x.qs).forEach((s,k)=>{const a=$('#cxa'+k).value,b=$('#cxb'+k).value,n=+$('#cxn'+k).value||0;if(!a&&!b&&!n)return;const lo=+a||0,hi=+b||1e9;let L=x.qs.filter(q=>(q.sec||'')==s&&(q.qn||q.n)>=lo&&(q.qn||q.n)<=hi);if(n&&n<L.length){for(let i=L.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[L[i],L[j]]=[L[j],L[i]]}L=L.slice(0,n)}out.push(...L.sort(ordQ))});if(!out.length)return toast('Fill at least one exercise, or no questions matched');beginRun(nm(out.map(q=>({...q}))),autoSec(out),x.c,!t)}
+/* ---- manage saved ---- */
+function vMng(){const m=S.mg=S.mg||{subj:SUBJ[0],ck:null};let h=`<div class="chips">${SUBJ.map((s,i)=>`<button class="${s==m.subj?'on':''}" onclick="S.mg.subj=SUBJ[${i}];S.mg.ck=null;render()">${s}</button>`).join('')}</div>`;
+ const cs=Object.values(DB.chap).filter(c=>c.subj==m.subj);
+ return h+(cs.length?cs.map(c=>{const op=m.ck==c.k;return`<div class="card"><div class="top"><b style="cursor:pointer" onclick="S.mg.ck=${op?'null':`'${c.k}'`};render()">${esc(c.name)} ${op?'&#9652;':'&#9662;'}</b><span><span class="mu">${cnt(c,'all')} saved</span> <button aria-label="Rename chapter" onclick="mgRename('${c.k}')">&#9998;</button><button aria-label="Delete chapter" onclick="mgDelCh('${c.k}')">x</button></span></div>${op?(Object.values(c.all).map(q=>`<div class="q" style="flex-wrap:wrap"><b>${q.sec?esc(q.sec.replace('Exercise','Ex'))+' ':''}Q${q.qn||q.n}</b><span class="sn">${snip(q)}</span><button aria-label="Delete question" data-id="${esc(q.id)}" onclick="mgDel('${c.k}',this.dataset.id)">x</button><input style="flex:1 1 100%" placeholder="Correct answer" value="${esc(q.key||'')}" data-id="${esc(q.id)}" onchange="mgKey('${c.k}',this.dataset.id,this.value)"></div>`).join('')||'<p class="mu">No questions saved.</p>'):''}</div>`}).join(''):'<div class="card mu">No saved chapters in this subject.</div>')}
+const chByK=k=>Object.values(DB.chap).find(c=>c.k==k);
+function mgDel(ck,id){if(!confirm('Delete this question everywhere in this chapter?'))return;const c=chByK(ck);['all','wrong','bm'].forEach(K=>delete c[K][id]);save();render()}
+function mgKey(ck,id,v){const c=chByK(ck);v=String(v).trim();const t=c.all[id]&&c.all[id].type=='mcq'?mcqKey(v):v;['all','wrong','bm'].forEach(K=>{if(c[K][id])c[K][id].key=t||undefined});save();toast('Answer saved')}
+function mgDelCh(ck){const c=chByK(ck);if(!c||!confirm('Delete the chapter "'+c.name+'" with all its saved questions?'))return;const k=Object.keys(DB.chap).find(x=>DB.chap[x]===c),n=DB.tests.filter(t=>t.ck==c.k).length;delete DB.chap[k];if(n&&confirm('Also delete the '+n+' test(s) of this chapter from History?'))DB.tests=DB.tests.filter(t=>t.ck!=c.k);S.mg.ck=null;S.hf='';save();render()}
+function mgRename(ck){const c=chByK(ck);if(!c)return;const nn=(prompt('New chapter name',c.name)||'').trim();if(!nn||nn==c.name)return;const nk=norm(nn);if(nk!==c.k&&findChap(nn))return toast('A chapter with this name already exists');const ok=Object.keys(DB.chap).find(x=>DB.chap[x]===c),old=c.k;delete DB.chap[ok];c.name=nn;c.k=nk;DB.chap[norm(c.subj)+'|'+nk]=c;DB.tests.forEach(t=>{if(t.ck==old){t.ck=nk;t.chap=nn}t.rows.forEach(x=>{if(x.ck==old)x.ck=nk})});S.mg.ck=nk;S.hf='';save();render();toast('Renamed')}
+function delTest(){if(!S.sum||!confirm('Delete this test from History? Saved questions in the bank stay.'))return;DB.tests=DB.tests.filter(t=>t.id!=S.sum.id);S.sum=null;save();render()}
+/* ---- backgrounds ---- */
+function hex(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0')};return'#'+f(0)+f(8)+f(4)}
+function surprise(){const h=Math.random()*360,d=isDark(),D=DB.set;D.pal='custom';D.c1=hex(h,70,d?14:90);D.c2=hex((h+60+Math.random()*80)%360,65,d?18:86);D.c3=hex((h+180)%360,60,d?70:36);D.fl=['bubbles','stars','leaves','snow','hearts'][Math.floor(Math.random()*5)];save();render();toast('New background')}
+function flayer(k){if(window._fl===k)return;window._fl=k;let e=document.getElementById('fl');if(!e){e=document.createElement('div');e.id='fl';e.setAttribute('aria-hidden','true');e.style.cssText='position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:-1';document.body.prepend(e);const s=document.createElement('style');s.textContent='@keyframes flt{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.6}100%{transform:translateY(-115vh) rotate(360deg);opacity:0}}@media(prefers-reduced-motion:reduce){#fl{display:none}}';document.head.appendChild(s)}
+ const G={bubbles:['\u25CB'],stars:['\u2726','\u2727'],leaves:['\uD83C\uDF43','\uD83C\uDF3F'],snow:['\u2744'],hearts:['\u2665','\u2661']}[k];e.innerHTML=G?Array.from({length:16},(_,i)=>`<span style="position:absolute;bottom:-40px;left:${(i*37+11)%100}%;font-size:${14+(i*7)%26}px;color:var(--ac);opacity:0;animation:flt ${12+(i*5)%14}s linear ${-(i*3)%14}s infinite">${G[i%G.length]}</span>`).join(''):''}
+/* ---------- v15: header stats, analysis, retest ---------- */
+const fT=s=>{s=Math.round(s||0);return s>=60?Math.floor(s/60)+'m '+String(s%60).padStart(2,'0')+'s':s+'s'};
+const pc=(r,w)=>r+w?Math.round(100*r/(r+w))+'%':'-';
+const stats=()=>{const cs=Object.values(DB.chap);let r=0,w=0;DB.tests.forEach(t=>t.rows.forEach(x=>{if(x.st=='right')r++;else if(x.st=='wrong')w++}));return{tests:DB.tests.length,acc:r+w?Math.round(100*r/(r+w)):0,wrong:cs.reduce((a,c)=>a+cnt(c,'wrong'),0),bm:cs.reduce((a,c)=>a+cnt(c,'bm'),0)}};
+const rsLine=t=>{const m={};let u=0;t.rows.forEach(x=>{if(x.st!='wrong')return;if(x.rs)m[x.rs]=(m[x.rs]||0)+1;else u++});const a=RS.filter(k=>m[k]).map(k=>k+' '+m[k]);return(a.length?a.join(', '):'No reasons tagged yet')+(u?' | Not tagged: '+u:'')};
+const jumpQ=i=>{S.sub2=1;S.open={};S.open[i]=true;render();setTimeout(()=>{const e=document.getElementById('qr'+i);if(e)e.scrollIntoView()},0)};
+const openQ=(id,i)=>{const t=DB.tests.find(x=>x.id==id);if(!t)return;S.sum=t;S.snaps={};jumpQ(i)};
+const goBank=k=>{const c=chByK(k);if(!c)return;S.tab='bank';S.sum=null;S.st=null;S.qd=null;S.bank.kind=cnt(c,'wrong')?'wrong':'all';S.bank.subj=c.subj;S.bank.ck=k;render();scrollTo(0,0)};
+
+/* retest: one timed test from the wrong or bookmarked questions, across chapters */
+const rtPool=K=>{const R=S.rt=S.rt||{all:0,n:'',mins:''},L=[];Object.values(DB.chap).forEach(c=>{if(R.all||c.subj==S.bank.subj)Object.values(c[K]).forEach(q=>L.push({...q,_ck:c.k,_cn:c.name}))});return L};
+const rtScope=i=>{S.rt=S.rt||{};S.rt.all=i;render()};
+function rtCard(K){const R=S.rt=S.rt||{all:0,n:'',mins:''},sub=a=>Object.values(DB.chap).reduce((t,c)=>t+((a||c.subj==S.bank.subj)?cnt(c,K):0),0),N=sub(R.all);if(!sub(1))return'';
+ return`<div class="card"><b>Timed retest</b><p class="mu">Mix your ${KL[K]} questions into one timed test.</p>${seg([S.bank.subj,'All subjects'],R.all?1:0,'rtScope')}<div class="row"><div><label for="rtn">How many (empty = all ${N})</label><input id="rtn" type="number" min="1" style="width:100%" value="${esc(R.n)}" oninput="S.rt.n=this.value"></div><div><label for="rtm">Minutes (empty = auto)</label><input id="rtm" type="number" min="1" style="width:100%" value="${esc(R.mins)}" oninput="S.rt.mins=this.value"></div></div><p class="mu">Auto time is 2 minutes per question, 4 for numericals. Questions are picked at random.</p><div class="row"><button class="p"${N?'':' disabled'} onclick="startRetest('${K}')">Practice (${N} available)</button><button class="p"${N?'':' disabled'} onclick="startRetest('${K}',1)">Timed test</button></div></div>`}
+function startRetest(K,t){const R=S.rt||{},L=rtPool(K);if(!L.length)return toast('Nothing to retest here');
+ for(let i=L.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[L[i],L[j]]=[L[j],L[i]]}
+ const n=Math.floor(+R.n)||0,mins=+R.mins||0,qs=nm(n>0&&n<L.length?L.slice(0,n):L),sb=[...new Set(qs.map(q=>(chByK(q._ck)||{}).subj))];
+ beginRun(qs,mins>0?Math.round(mins*60):autoSec(qs),{k:'mixed',name:'Retest: '+KL[K]+' questions',subj:sb.length==1?sb[0]:'Mixed'},!t)}
+
+/* analysis card (History) */
+function anaRows(){const A=[];DB.tests.forEach(t=>t.rows.forEach((x,i)=>{const k=x.ck||t.ck,c=chByK(k);if(S.hs&&!(c&&c.subj==S.hs))return;A.push({t,x,i,k,name:c?c.name:(k==t.ck?t.chap:'Deleted chapter')})}));return A}
+const TD=['','5 3','2 3','8 3 2 3','1 4','6 2'],HUE=[175,35,265,335,215,95],tcol=i=>'hsl('+HUE[i]+' 65% 50%)';
+function trendSvg(A){const M={};A.forEach(a=>{if(a.x.st!='right'&&a.x.st!='wrong')return;const m=M[a.k]=M[a.k]||{name:a.name,p:{}},p=m.p[a.t.id]=m.p[a.t.id]||{r:0,w:0,id:a.t.id};a.x.st=='right'?p.r++:p.w++});
+ const L=Object.values(M).map(m=>({name:m.name,pts:Object.values(m.p).filter(p=>p.r+p.w>=3).sort((a,b)=>a.id-b.id)})).filter(m=>m.pts.length>=2).sort((a,b)=>b.pts.length-a.pts.length);
+ if(!L.length)return'<p class="mu">The chart appears once a chapter has 2 tests with at least 3 scored questions each.</p>';
+ const sh=L.slice(0,6),ids=[...new Set(sh.flatMap(m=>m.pts.map(p=>p.id)))].sort((a,b)=>a-b),X=id=>ids.length>1?34+ids.indexOf(id)*(274/(ids.length-1)):171,Y=v=>112-v,pr=p=>Math.round(100*p.r/(p.r+p.w));
+ let s=`<svg viewBox="0 0 320 140" width="100%" role="img" aria-label="Accuracy over time by chapter">`;
+ [0,50,100].forEach(v=>{s+=`<line x1="34" y1="${Y(v)}" x2="308" y2="${Y(v)}" stroke="var(--bd)"/><text x="30" y="${Y(v)+3}" text-anchor="end" font-size="9" fill="var(--mu)">${v}%</text>`});
+ sh.forEach((m,i)=>{const P=m.pts.map(p=>[X(p.id),Y(pr(p)),p]);s+=`<polyline fill="none" stroke="${tcol(i)}" stroke-width="2"${TD[i]?` stroke-dasharray="${TD[i]}"`:''} points="${P.map(p=>p[0].toFixed(1)+','+p[1]).join(' ')}"/>`+P.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1]}" r="3.5" fill="${tcol(i)}"><title>${esc(m.name)}: ${pr(p[2])}% on ${new Date(p[2].id).toLocaleDateString()}</title></circle>`).join('')});
+ s+=`<text x="34" y="130" font-size="9" fill="var(--mu)">${new Date(ids[0]).toLocaleDateString()}</text><text x="308" y="130" text-anchor="end" font-size="9" fill="var(--mu)">${new Date(ids[ids.length-1]).toLocaleDateString()}</text></svg>`;
+ return s+'<div>'+sh.map((m,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 10px 2px 0"><svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4" stroke="${tcol(i)}" stroke-width="2.5"${TD[i]?` stroke-dasharray="${TD[i]}"`:''}/></svg><span class="mu">${esc(m.name)} (latest ${pr(m.pts[m.pts.length-1])}%)</span></span>`).join('')+'</div><p class="mu">Each point is one test with at least 3 scored questions from that chapter. Oldest on the left.'+(L.length>6?' Showing the 6 chapters with the most tests.':'')+'</p>'}
+function anaCard(){const A=anaRows(),open=S.an!==0,sc=A.filter(a=>a.x.st=='right'||a.x.st=='wrong');
+ let h=`<div class="card"><div class="top" style="cursor:pointer" onclick="S.an=${open?0:1};render()"><b>Analysis</b><span class="mu">${esc(S.hs||'All subjects')} ${open?'&#9652;':'&#9662;'}</span></div>`;
+ if(!open)return h+'</div>';
+ if(!sc.length)return h+'<p class="mu">Take a test that has an answer key and your analysis appears here.</p></div>';
+ const R=sc.filter(a=>a.x.st=='right').length,ans=A.filter(a=>a.x.ans!==''&&a.x.ans!==undefined),av=ans.length?ans.reduce((s,a)=>s+a.x.tm,0)/ans.length:0,
+  M={};A.forEach(a=>{const m=M[a.k]=M[a.k]||{k:a.k,name:a.name,r:0,w:0,ts:0,tn:0};if(a.x.st=='right')m.r++;else if(a.x.st=='wrong')m.w++;if(a.x.ans!==''&&a.x.ans!==undefined){m.ts+=a.x.tm;m.tn++}});
+ const CH=Object.values(M).filter(m=>m.r+m.w).sort((a,b)=>a.r/(a.r+a.w)-b.r/(b.r+b.w)||(b.r+b.w)-(a.r+a.w)),weak=CH.filter(m=>m.r+m.w>=3&&m.r/(m.r+m.w)<.75).slice(0,3),
+  cf2=k=>{const a=sc.filter(x=>x.x.cf==k),r=a.filter(x=>x.x.st=='right').length;return a.length?pc(r,a.length-r)+' ('+r+' of '+a.length+' right)':'none marked yet'},
+  sbw=A.filter(a=>a.x.cf=='sure'&&a.x.st=='wrong').sort((a,b)=>b.t.id-a.t.id),wr=A.filter(a=>a.x.st=='wrong'),rc={};
+ wr.forEach(a=>{if(a.x.rs)rc[a.x.rs]=(rc[a.x.rs]||0)+1});const tg=Object.values(rc).reduce((a,b)=>a+b,0),mx=Math.max(1,...Object.values(rc));
+ h+=`<div class="grid" style="margin-top:8px"><div><div class="mu">Overall accuracy</div><div class="big">${pc(R,sc.length-R)}</div><div class="mu">${R} right, ${sc.length-R} wrong</div></div><div><div class="mu">Average time per question</div><div class="big">${ans.length?fT(av):'-'}</div><div class="mu">answered questions only</div></div></div>`;
+ h+=`<p style="margin:12px 0 0"><b>Accuracy by chapter</b></p><div class="list">${CH.map(m=>{const p=Math.round(100*m.r/(m.r+m.w)),cl=p>=75?'var(--ok)':p>=50?'var(--wn)':'var(--no)';return`<div style="margin:8px 0"><div class="top"><span>${esc(m.name)}</span><span><b>${p}%</b> <span class="mu">${m.r} of ${m.r+m.w}${m.tn?' - '+fT(m.ts/m.tn)+' each':''}</span></span></div><div style="height:6px;background:var(--bd);border-radius:3px;margin-top:3px"><div style="height:6px;width:${p}%;background:${cl};border-radius:3px"></div></div></div>`}).join('')}</div>`;
+ h+=`<p style="margin:12px 0 0"><b>Weakest chapters</b></p>${weak.length?weak.map(m=>{const p=Math.round(100*m.r/(m.r+m.w));return`<div class="row"><span><b>${esc(m.name)}</b> <span class="mu">${p}% on ${m.r+m.w} questions</span></span>${chByK(m.k)?`<button style="flex:0 0 auto" onclick="goBank('${m.k}')">Open in bank</button>`:''}</div>`}).join(''):'<p class="mu">None yet. A chapter shows here once it has 3 or more scored questions and accuracy below 75%.</p>'}`;
+ h+=`<p style="margin:12px 0 0"><b>Sure versus guess</b></p><p class="mu">When sure: ${cf2('sure')}<br>When guessing: ${cf2('guess')}</p><div class="mu">Sure but wrong${sbw.length?' ('+sbw.length+')':''}</div>${sbw.length?sbw.slice(0,8).map(a=>`<div class="q" style="cursor:pointer" onclick="openQ(${a.t.id},${a.i})"><b>Q${a.x.n}</b><span class="sn">${esc(a.name)}</span><span class="mu">${new Date(a.t.id).toLocaleDateString()}</span></div>`).join('')+(sbw.length>8?`<p class="mu">and ${sbw.length-8} more</p>`:''):'<p class="mu">none</p>'}`;
+ h+=`<p style="margin:12px 0 0"><b>Why questions went wrong</b></p>${RS.map(k=>`<div class="row" style="margin-top:4px"><span class="mu" style="flex:0 0 100px">${k}</span><div style="flex:1;height:8px;background:var(--bd);border-radius:4px"><div style="height:8px;width:${100*(rc[k]||0)/mx}%;background:var(--ac);border-radius:4px"></div></div><span style="flex:0 0 64px;text-align:right">${rc[k]||0}${tg?' ('+Math.round(100*(rc[k]||0)/tg)+'%)':''}</span></div>`).join('')}<p class="mu">${tg} of ${wr.length} wrong questions tagged. Tag them in a test summary.</p>`;
+ h+=`<p style="margin:12px 0 0"><b>Accuracy over time by chapter</b></p>${trendSvg(A)}</div>`;return h}
+
+/* ---------- Bank tab ---------- */
+const KL={wrong:'wrong',bm:'bookmarked',all:'saved'};
+function chSt(c){const a=DB.tests.filter(t=>t.ck==c.k&&!t.prac).slice(-3).map(acc);if(!a.length)return'';const v=a.reduce((x,y)=>x+y,0)/a.length;return v>=75?'<span class="chip right">Strong</span>':v>=50?'<span class="chip skip">Moderate</span>':'<span class="chip wrong">Weak</span>'}
+const mxOpen=()=>{S.mx=S.mx||{o:0,n:{},s:{},mins:''};S.mx.o=!S.mx.o;render()};
+function mixCard(K){S.mx=S.mx||{o:0,n:{},s:{},mins:''};const M=S.mx,cs=Object.values(DB.chap).filter(c=>cnt(c,K));if(!cs.length)return'';
+ if(!M.o)return`<div class="card"><button class="p" onclick="mxOpen()">Custom mix: any chapters or subjects &#9662;</button></div>`;
+ return`<div class="card"><div class="top"><b>Custom mix (${KL[K]} questions)</b><button onclick="mxOpen()">Close</button></div><p class="mu">Type how many questions you want. "Any chapter" picks at random from the whole subject. A chapter box picks from that chapter. Leave a box empty to skip it. For a JEE style paper, type 25 for Physics, Maths and each Chemistry part.</p>
+ ${SUBJ.map((s,si)=>{const L=cs.filter(c=>c.subj==s);if(!L.length)return'';const tot=L.reduce((a,c)=>a+cnt(c,K),0);return`<div style="margin-top:8px"><b>${s}</b> <span class="mu">${tot} available</span><div class="row"><label style="flex:2;margin:0" for="mxs${si}">Any chapter</label><input id="mxs${si}" type="number" min="1" value="${esc(M.s[s]||'')}" oninput="S.mx.s['${s}']=this.value"></div>${L.map(c=>`<div class="row"><span style="flex:2">${esc(c.name)} <span class="mu">${cnt(c,K)}</span></span><input aria-label="Questions from ${esc(c.name)}" type="number" min="1" value="${esc(M.n[c.k]||'')}" oninput="S.mx.n['${c.k}']=this.value"></div>`).join('')}</div>`}).join('')}
+ <label for="mxm">Minutes (empty = auto)</label><input id="mxm" type="number" min="1" value="${esc(M.mins)}" oninput="S.mx.mins=this.value"><p class="mu">Practice runs are labelled practice. Test runs count in your chapter accuracy.</p><div class="row"><button class="p" onclick="startMix('${K}')">Start practice</button><button class="p" onclick="startMix('${K}',1)">Start test</button></div></div>`}
+function startMix(K,t){const M=S.mx||{n:{},s:{}},cs=Object.values(DB.chap).filter(c=>cnt(c,K)),out=[],shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a},tag=(c,q)=>({...q,_ck:c.k,_cn:c.name});
+ SUBJ.forEach(s=>{const L=cs.filter(c=>c.subj==s),used=new Set();L.forEach(c=>{const n=Math.floor(+M.n[c.k])||0;if(n>0)shuf(Object.values(c[K]).map(q=>tag(c,q))).slice(0,n).forEach(q=>{used.add(c.k+'|'+q.id);out.push(q)})});
+  const m=Math.floor(+M.s[s])||0;if(m>0){const pool=[];L.forEach(c=>Object.values(c[K]).forEach(q=>{if(!used.has(c.k+'|'+q.id))pool.push(tag(c,q))}));shuf(pool).slice(0,m).forEach(q=>out.push(q))}});
+ if(!out.length)return toast('Type how many questions you want from at least one chapter or subject');
+ const qs=nm(out),mins=+M.mins||0,sb=[...new Set(qs.map(q=>(chByK(q._ck)||{}).subj))];
+ beginRun(qs,mins>0?Math.round(mins*60):autoSec(qs),{k:'mixed',name:'Custom mix ('+KL[K]+')',subj:sb.length==1?sb[0]:'Mixed'},!t)}
+function vBank(){const b=S.bank,K=b.kind;let h=seg(['All','Wrong','Bookmarks'],['all','wrong','bm'].indexOf(K),'bankKind')+`<div class="chips">${SUBJ.map((s,i)=>`<button class="${s==b.subj?'on':''}" onclick="S.bank.subj=SUBJ[${i}];S.bank.ck=null;render()">${s} ${Object.values(DB.chap).filter(c=>c.subj==s).reduce((a,c)=>a+cnt(c,K),0)}</button>`).join('')}</div>`;
+ if(b.subj=='Test'){b.tl=b.tl||TLV[0];h+=`<div class="chips">${TLV.map(x=>`<button class="${x==b.tl?'on':''}" onclick="S.bank.tl='${x}';S.bank.ck=null;render()">${x}</button>`).join('')}</div>`}
+ const cs=Object.values(DB.chap).filter(c=>c.subj==b.subj&&cnt(c,K)&&(b.subj!='Test'||c.name.indexOf(b.tl)==0)).sort((x,y)=>x.name.localeCompare(y.name));
+ return h+mixCard(K)+(K!='all'?rtCard(K):'')+(cs.length?cs.map(c=>{const op=b.ck==c.k,qs=Object.values(c[K]);return`<div class="card"><div class="top" style="cursor:pointer" onclick="S.bank.ck=${op?'null':`'${c.k}'`};render()"><b>${esc(c.name)} ${chSt(c)}</b><span class="mu">${qs.length} ${KL[K]} ${op?'&#9652;':'&#9662;'}</span></div>${op?`<div class="row"><button class="p" onclick="startPractice('${c.k}','${K}')">Practice all ${qs.length}</button><button class="p" onclick="startPractice('${c.k}','${K}',1)">Test on all ${qs.length}</button></div>${cpanel(c,K,qs)}${bankBody(c,K,qs)}`:''}</div>`}).join(''):`<div class="card mu">Nothing here yet. Wrong answers and bookmarks from your tests appear here under their chapter.</div>`)}
+const bankKind=i=>{S.bank.kind=['all','wrong','bm'][i];S.bank.ck=null;render()};
+function rmQ(ck,K,id){const c=Object.values(DB.chap).find(x=>x.k==ck);delete c[K][id];save();render()}
+
+/* ---------- History tab ---------- */
+function vHist(){let ts=DB.tests.filter(t=>(!S.hf||t.ck==S.hf)&&(!S.hs||t.subj==S.hs));
+ const chs=Object.values(DB.chap).filter(c=>!S.hs||c.subj==S.hs);let h=`<div class="card"><label for="hs">Subject</label><select id="hs" onchange="S.hs=this.value;S.hf='';render()"><option value="">All subjects</option>${SUBJ.map(x=>`<option${x==S.hs?' selected':''}>${x}</option>`).join('')}</select><label for="hf">Chapter</label><select id="hf" onchange="S.hf=this.value;render()"><option value="">All chapters</option>${chs.map(c=>`<option value="${c.k}"${c.k==S.hf?' selected':''}>${esc(c.name)}</option>`).join('')}</select>`;
+ if(ts.length>1){const P=ts.slice(-12).map((t,i,a)=>[10+i*(300/(a.length-1)),90-acc(t)*0.8]);h+=`<p class="mu">Accuracy trend</p><svg viewBox="0 0 320 100" width="100%" role="img" aria-label="Accuracy trend"><line x1="10" y1="10" x2="310" y2="10" stroke="var(--bd)"/><line x1="10" y1="90" x2="310" y2="90" stroke="var(--bd)"/><polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${P.map(p=>p.join(',')).join(' ')}"/>${P.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--ac)"/>`).join('')}</svg><p class="mu">Top line is 100%, bottom is 0%.</p>`}
+ else h+='<p class="mu">Take 2 tests in a chapter to see its accuracy trend.</p>';
+ h+='</div>';
+ return heat()+h+anaCard()+(ts.length?ts.slice().reverse().map(t=>`<div class="card" style="cursor:pointer" onclick="openT(${t.id})"><div class="top"><b>${esc(t.chap)}${t.prac?' (practice)':''}</b><span class="mu">${new Date(t.id).toLocaleDateString()}</span></div><div class="mu">${t.sc} / ${t.max} - ${acc(t)}% accuracy - ${Math.round(t.used/60)} min</div></div>`).join(''):'<div class="card mu">No tests yet. Your results will be saved here.</div>')}
+const dk=d=>new Date(d).toLocaleDateString('en-CA');
+function heatFull(){const g=DB.set.goal||100,m={},ch={};DB.tests.forEach(t=>{const k=dk(t.id);m[k]=(m[k]||0)+t.rows.filter(x=>x.ans!=='').length;(ch[k]=ch[k]||new Set()).add(t.chap)});
+ const now=new Date(),cm=S.cm=S.cm||{y:now.getFullYear(),m:now.getMonth()},first=new Date(cm.y,cm.m,1),start=new Date(cm.y,cm.m,1-first.getDay()),td=dk(now),cl=[];
+ for(let i=0;i<42;i++){const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i),k=dk(d),n=m[k]||0,out=d.getMonth()!=cm.m;
+  cl.push(`<button aria-label="${k}: ${n} questions" onclick="calDay('${k}')" style="aspect-ratio:1;padding:2px;min-height:0;font-size:12px;line-height:1.2;display:flex;flex-direction:column;align-items:center;justify-content:center;${out?'opacity:.4;':''}border:${k==td?'2px solid var(--ac)':S.cd==k?'2px dashed var(--tx)':'1px solid var(--bd)'};${n?(n>=g?'background:var(--ac);color:var(--bg)':'background:var(--wnb);color:var(--wn)'):'background:var(--cd)'}"><span>${d.getDate()}</span><b style="font-size:11px">${n||''}</b></button>`)}
+ const dd=S.cd&&m[S.cd]?`<p class="mu"><b>${new Date(S.cd+'T00:00').toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'})}</b>: ${m[S.cd]} questions. ${[...ch[S.cd]].map(esc).join(', ')}</p>`:'';
+ return`<div class="card"><b>Practice calendar</b><div class="top" style="margin-top:8px"><button aria-label="Previous month" onclick="calGo(-1)">&#8249;</button><b>${first.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</b><span><button onclick="S.cm=null;S.cd=null;render()">Today</button> <button aria-label="Next month" onclick="calGo(1)">&#8250;</button></span></div>
+ <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;text-align:center" class="mu">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<div>${x}</div>`).join('')}</div>
+ <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:4px">${cl.join('')}</div>${dd}
+ <div class="row"><label for="goal" style="flex:2;margin:0">Daily goal (questions)</label><input id="goal" type="number" min="1" value="${g}" oninput="DB.set.goal=Math.max(1,+this.value||1);save()" onchange="render()"></div><p class="mu">Green: goal reached. Yellow: practised, below goal. Plain: no practice. Small number: questions attempted. Outlined: today.</p></div>`}
+const calGo=d=>{const c=S.cm,t=new Date(c.y,c.m+d,1);S.cm={y:t.getFullYear(),m:t.getMonth()};S.cd=null;render()};
+const calDay=k=>{S.cd=S.cd==k?null:k;render()};
+function heat(){if(!S.cal)return'<div class="card" style="cursor:pointer" onclick="S.cal=1;render()"><div class="top"><b>Practice calendar</b><span class="mu">Tap to open &#9662;</span></div></div>';return heatFull().replace('<b>Practice calendar</b>','<div class="top" style="cursor:pointer" onclick="S.cal=0;render()"><b>Practice calendar</b><span class="mu">&#9652;</span></div>')}
+function openT(id){S.sum=DB.tests.find(t=>t.id==id);S.sub2=0;S.snaps={};S.open={};render()}
+
+/* ---------- Profile tab ---------- */
+const PAL={teal:['Teal',null,null,'#0f766e','#4fd1c5'],sunset:['Sunset',['#ffecd2','#fcb69f'],['#2b1d2e','#3a2218'],'#c2410c','#fdba74'],ocean:['Ocean',['#e0f2fe','#c7d2fe'],['#0b1b2e','#1a1b3a'],'#1d4ed8','#93c5fd'],forest:['Forest',['#dcfce7','#d9f99d'],['#0d2418','#1a2a10'],'#15803d','#86efac'],rose:['Rose',['#ffe4e6','#fbcfe8'],['#2a1220','#2b1233'],'#be185d','#f9a8d4'],aurora:['Aurora',['#d1fae5','#c7d2fe'],['#06202b','#2a1b4d'],'#0f766e','#5eead4'],midnight:['Midnight',['#e2e8f0','#cbd5e1'],['#020617','#1e1b4b'],'#4338ca','#a5b4fc'],candy:['Candy',['#fce7f3','#e0e7ff'],['#2e1065','#4a044e'],'#c026d3','#f0abfc'],sand:['Desert sand',['#fef3c7','#fde68a'],['#292018','#3b2a12'],'#b45309','#fcd34d'],lavender:['Lavender',['#ede9fe','#fae8ff'],['#1e1b3a','#2d1b45'],'#7c3aed','#c4b5fd'],mint:['Mint',['#ccfbf1','#cffafe'],['#052e2b','#082f49'],'#0e7490','#67e8f9'],fire:['Fire',['#fee2e2','#fed7aa'],['#2a0f0f','#3b1d0a'],'#dc2626','#fca5a5'],galaxy:['Galaxy',['#e0e7ff','#fbcfe8'],['#0f0a2a','#2a0a3b'],'#6d28d9','#d8b4fe'],custom:['Custom mix']};
+const FONTS={'Default':'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif','Serif':'Georgia,"Times New Roman",serif','Mono':'ui-monospace,Menlo,Consolas,monospace','Easy read':'Verdana,Tahoma,sans-serif'};
+const isDark=()=>{const m=DB.set.mode||'auto';if(m=='dark')return true;if(m=='light')return false;const h=new Date().getHours();return h<6||h>=18};
+function applyLook(){const t=DB.set,d=isDark(),r=document.documentElement.style,B=d?{bg:'#121513',cd:'#1b1f1d',tx:'#e8ebe9',mu:'#9aa39e',bd:'#2c332f'}:{bg:'#f6f7f5',cd:'#fff',tx:'#1b1f1d',mu:'#68706b',bd:'#dde1dd'},p=PAL[t.pal||'teal']||PAL.teal;
+ let g=null,ac=d?'#4fd1c5':'#0f766e';
+ if(t.pal=='custom'){g=[t.c1||'#e0f2fe',t.c2||'#fbcfe8'];ac=t.c3||ac}else if(p[3]){ac=d?p[4]:p[3];if(p[1])g=d?p[2]:p[1]}
+ const V={...B,ac};if(t.hc){V.bd=V.tx;V.mu=V.tx}if(g)V.bg=g[0];
+ ['bg','cd','tx','mu','bd','ac'].forEach(k=>r.setProperty('--'+k,V[k]));r.setProperty('--acb','color-mix(in srgb,'+ac+' 18%,'+B.cd+')');r.colorScheme=d?'dark':'light';
+ flayer(t.fl||'off');document.body.style.background=g?'linear-gradient(160deg,'+g[0]+','+g[1]+') fixed':'';document.body.style.fontFamily=FONTS[t.font||'Default'];document.body.style.fontSize=(15*(t.fs||100)/100)+'px';
+ const R={sq:2,rd:12,xr:22}[t.rad||'rd'],P={c:8,n:12,x:18}[t.den||'n'];let st=document.getElementById('dyn');if(!st){st=document.createElement('style');st.id='dyn';document.head.appendChild(st)}
+ st.textContent='.card,.vw,.q{border-radius:'+R+'px}input,select,textarea,button,.disp,.chip,.tm{border-radius:'+Math.round(R*.7)+'px}.card{padding:'+P+'px}'+(t.big?'button,input,select{min-height:50px}':'')}
+setInterval(()=>{if(DB.set.mode=='auto'&&!S.run)applyLook()},600000);
+const setS=(k,v)=>{DB.set[k]=v;save();render()};
+const cb=(k,d,o)=>`<div class="chips">${o.map(([v,l])=>`<button class="${(DB.set[k]??d)==v?'on':''}" onclick="setS('${k}',${typeof v=='number'?v:"'"+v+"'"})">${l}</button>`).join('')}</div>`;
+/* ---------- Google login + cloud sync (Supabase) ---------- */
+const SBU='https://uhayfaqfhsatajcveolb.supabase.co',SBK='sb_publishable_NxioomB_rQtRrACjveheDw_c1ta6QEW';
+let sb=null,USER=null,SYNC='';
+try{if(window.supabase){sb=supabase.createClient(SBU,SBK);sb.auth.onAuthStateChange((ev,ses)=>{const u=(ses&&ses.user)||null,nw=u&&(!USER||USER.id!=u.id);USER=u;if(nw)setTimeout(pull,0);else setTimeout(render,0)})}}catch(e){}
+async function pull(){try{SYNC='Syncing...';render();const{data,error}=await sb.from('chapterloop_data').select('data').eq('user_id',USER.id).maybeSingle();if(error)throw error;
+ const d=data&&data.data,rt=(d&&d.ts)||0,lt=DB.ts||0,empty=!Object.keys(DB.chap).length&&!DB.tests.length,rn=d&&d.chap?Object.keys(d.chap).length:0;
+ if(d&&d.chap&&d.tests&&rn&&(empty||rt>lt||(!rt&&!lt&&d.tests.length>DB.tests.length))){localStorage.setItem('tm_db',JSON.stringify(d));load();SYNC='Loaded from cloud '+new Date().toLocaleTimeString()}else await push()}catch(e){SYNC='Sync failed: '+((e&&e.message)||e)}render()}
+async function push(){if(!sb||!USER)return;try{const{error}=await sb.from('chapterloop_data').upsert({user_id:USER.id,data:slim(),updated_at:new Date().toISOString()});if(error)throw error;SYNC='Synced '+new Date().toLocaleTimeString();window._pf=0}catch(e){SYNC='Sync failed: '+((e&&e.message)||e)+'. Will retry.';if(!window._pf){window._pf=1;setTimeout(()=>{window._pf=0;push()},30000)}}const el=document.getElementById('syl');if(el)el.textContent=syncLine()}
+const syncLine=()=>USER?'Cloud: '+(SYNC||'signed in'):'Guest: saved on this device only. Sign in under Settings > Profile and account to sync.';
+window.addEventListener('online',()=>{if(USER)push()});
+async function eAuth(m){const e=$('#em').value.trim(),p=$('#pw').value;if(!e||p.length<6)return toast('Enter your email and a password of 6+ characters');
+ try{const r=m=='up'?await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:location.origin+location.pathname}}):await sb.auth.signInWithPassword({email:e,password:p});if(r.error)throw r.error;try{localStorage.setItem('tm_em',e)}catch(_){}if(m=='up'&&!r.data.session)toast('Account created. Confirm the link sent to your email, then sign in.')}catch(x){toast((x&&x.message)||'Login failed')}}
+const gOut=async()=>{await sb.auth.signOut();USER=null;SYNC='';render()};
+/* ---------- Settings tab (tiles) ---------- */
+Object.assign(IC,{sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>',ty:'<path d="M5 6V4h14v2M12 4v16M9 20h6"/>'});
+const TI=[['usr','Profile and account','Name, exams, login, sync','profile'],['pal','Background and mode','Light, dark, colours','bg'],['ty','Display','Font, size, shape','disp'],['dat','Manage saved','Remove chapters or questions, fix answers','mng'],['shr','Share','Share this website','share']];
+const acctCard=()=>`<div class="card">${!sb?'<p class="mu">Login could not load. Check your internet and reload. You can keep using guest mode.</p>':USER?`<label for="ue">Email</label><input id="ue" type="email" value="${esc(USER.email||'')}" disabled><label for="up">Password</label><input id="up" type="password" value="********" disabled><p class="mu">Your real password is never shown here.</p><label for="np">New password (6+ characters)</label><input id="np" type="password" autocomplete="new-password"><button class="p" onclick="chPw()">Change password</button><p class="mu">${esc(SYNC)}</p><div class="row"><button onclick="pull()">Sync now</button><button onclick="gOut()">Sign out</button></div>`:`<p class="mu"><b>Guest mode.</b> Everything works without signing in. Your data stays on this device. Sign in to keep it safe and the same on phone and laptop. After you sign in once, this device stays signed in.</p><label for="em">Email</label><input id="em" type="email" autocomplete="email" style="width:100%" value="${esc((()=>{try{return localStorage.getItem('tm_em')||''}catch(_){return''}})())}"><label for="pw">Password (6+ characters)</label><input id="pw" type="password" autocomplete="current-password" style="width:100%"><div class="row"><button class="p" onclick="eAuth('in')">Sign in</button><button class="p" onclick="eAuth('up')">Create account</button></div>`}</div>`;
+async function chPw(){const p=$('#np').value;if(p.length<6)return toast('Use a password of 6+ characters');try{const{error}=await sb.auth.updateUser({password:p});if(error)throw error;$('#np').value='';toast('Password changed')}catch(x){toast((x&&x.message)||'Could not change password')}}
+function vProf(){const k=S.st;
+ if(!k)return`<div class="grid">${TI.map(t=>`<div class="card" style="cursor:pointer;text-align:center" onclick="S.st='${t[3]}';render()">${ico(t[0])}<div><b>${t[1]}</b></div><div class="mu">${t[2]}</div></div>`).join('')}</div>`;
+ const hd=`<div class="top"><b>${TI.find(t=>t[3]==k)[1]}</b><button onclick="S.st=null;render()">Back</button></div>`;
+ if(k=='profile'){
+  return hd+`<div class="card" id="profile-section"><label for="pn">Name</label><input id="pn" value="${esc(DB.profile.name)}" oninput="DB.profile.name=this.value;save()">${examEd()}</div>${acctCard()}`}
+ if(k=='mode')return hd+`<div class="card">${cb('mode','auto',[['auto','Auto'],['light','Light'],['dark','Dark']])}<p class="mu">Auto is light from 6 am to 6 pm and dark at night.</p></div>`;
+ if(k=='bg'){const c=DB.set;return hd+`<div class="card"><label>Mode (Auto is light by day, dark at night)</label>${cb('mode','auto',[['auto','Auto'],['light','Light'],['dark','Dark']])}<label>Background</label>${cb('pal','teal',Object.keys(PAL).map(x=>[x,PAL[x][0]]))}${c.pal=='custom'?`<div class="row"><div><label for="c1">Colour 1</label><input id="c1" type="color" value="${c.c1||'#e0f2fe'}" onchange="setS('c1',this.value)"></div><div><label for="c2">Colour 2</label><input id="c2" type="color" value="${c.c2||'#fbcfe8'}" onchange="setS('c2',this.value)"></div><div><label for="c3">Buttons</label><input id="c3" type="color" value="${c.c3||'#0f766e'}" onchange="setS('c3',this.value)"></div></div>`:''}<label>Floating things</label>${cb('fl','off',[['off','Off'],['bubbles','Bubbles'],['stars','Stars'],['leaves','Leaves'],['snow','Snow'],['hearts','Hearts']])}<button class="p" onclick="surprise()">&#10024; Surprise me</button></div>`}
+ if(k=='disp'){const c=DB.set;return hd+`<div class="card"><label>Font</label>${cb('font','Default',Object.keys(FONTS).map(x=>[x,x]))}<label>Text size</label>${cb('fs',100,[[90,'Small'],[100,'Normal'],[115,'Large'],[130,'Extra large']])}<label>Box shape</label>${cb('rad','rd',[['sq','Square'],['rd','Round'],['xr','Extra round']])}<label>Spacing</label>${cb('den','n',[['c','Compact'],['n','Normal'],['x','Roomy']])}<label>More</label><div class="chips"><button class="${c.hc?'on':''}" onclick="setS('hc',${!c.hc})">High contrast</button><button class="${c.big?'on':''}" onclick="setS('big',${!c.big})">Big buttons</button></div></div>`}
+ if(k=='mng')return hd+vMng();
+ if(k=='acct')return hd+acctCard();
+ return hd+`<div class="card" id="share-section"><button class="p" onclick="shareApp()">Share this website</button><p class="mu">Shares this page's link. A file opened from your device has no public link. Host it first.</p></div>`}
+async function shareApp(){const u=location.href;try{if(navigator.share)await navigator.share({title:'ChapterLoop',url:u});else{await navigator.clipboard.writeText(u);toast('Link copied')}}catch(e){toast('Could not share. Copy the address bar link.')}}
+function expo(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB)],{type:'application/json'}));a.download='test-maker-backup.json';a.click()}
+function impo(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.chap||!d.tests)throw 0;if(confirm('Replace current data with this backup?')){DB=d;save();load();render();toast('Backup restored')}}catch(e){toast('That file is not a valid backup')}};r.readAsText(f)}
+render();
+</script></body></html>
