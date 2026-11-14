@@ -87,11 +87,11 @@ function vTest(){const u=S.su;let h='';
  {
   h+=`<div class="card"><label for="subj">Subject</label><select id="subj" onchange="subjIn(this.value)">${SUBJ.map(x=>`<option${x==u.subj?' selected':''}>${x}</option>`).join('')}</select>
   ${u.subj=='Test'?`<label for="tl">Exam</label><select id="tl" onchange="S.su.tl=this.value;S.su.chap=tName(S.su);render()">${TLV.map(x=>`<option${x==(u.tl||TLV[0])?' selected':''}>${x}</option>`).join('')}</select><label for="tk">Test type</label><select id="tk" onchange="S.su.tk=this.value;S.su.chap=tName(S.su);render()">${TKD.map(x=>`<option value="${x[0]}"${x[0]==(u.tk||'Minor')?' selected':''}>${x[1]}</option>`).join('')}</select><div class="mu">Saved as: ${esc(tName(u))}</div>`:`<label for="chap">Chapter</label><input id="chap" list="cl" value="${esc(u.chap)}" oninput="chapIn(this.value)" placeholder="Type a chapter, e.g. IUPAC" autocomplete="off"><datalist id="cl">${Object.values(DB.chap).filter(c=>c.subj!='Test').map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><div class="mu" id="cn">${chapNote()}</div>`}</div>
-  <div class="card"><label>PDF</label><input type="file" accept="application/pdf" onchange="pickPdf(this.files[0])"><div class="mu">${esc(u.msg||u.pdfName)}</div>
+  <div class="card"><label>PDF or photos of pages</label><input type="file" accept="application/pdf,image/*" multiple onchange="pickPdf(this.files)"><div class="mu" id="pm">${esc(u.msg||u.pdfName)}</div><div class="row"><button onclick="aiSetKey()">Smart AI: ${aiKey()?'on (change)':'off (add free key)'}</button></div><div class="mu">Optional. With your own free Gemini key, the AI finds questions on scanned or photo pages and in the crop editor (Find with AI). The page pictures are sent to Google.</div>${u.qs&&u.qs.length&&aiKey()?'<div class="row"><button onclick="aiBulk()">AI: fill missing answers and solutions</button><button onclick="S.su.aiStop=true">Stop</button></div>':''}
   
   <label for="key">Answer key</label><textarea id="key" rows="2" placeholder="1-B, 2-C, 3-4.5" oninput="S.su.key=this.value">${esc(u.key)}</textarea></div>`;
-  if(u.mode=='crop'&&u.pdf)h+=`<div class="card" id="cropc"><div class="row">${cropEd(u)?'<button onclick="cropBack()">Back</button>':''}<button onclick="pgGo(-1)">Prev page</button><span class="mu" style="text-align:center">Page ${u.pg} of ${u.pdf.numPages}</span><button onclick="pgGo(1)">Next page</button></div><div class="row"><button class="${u.draw?'on':''}" onclick="S.su.draw=!S.su.draw;render()">Draw: ${u.draw?'on (drag over a question)':'off (scroll)'}</button></div>${cropLbl(u)}
-   <div class="vw"><div class="in" id="vw" style="touch-action:${u.draw?'none':'auto'}" onpointerdown="pd(event)" onpointermove="pm(event)" onpointerup="pu()"><canvas id="cv"></canvas><div id="sb"></div></div></div></div>`+pendCard(u);
+  if(u.mode=='crop'&&u.pdf)h+=`<div class="card" id="cropc"><div class="row">${cropEd(u)?'<button onclick="cropBack()">Back</button>':''}<button onclick="pgGo(-1)">Prev page</button><span class="mu" style="text-align:center">Page ${u.pg} of ${u.pdf.numPages}</span><button onclick="pgGo(1)">Next page</button></div><div class="row"><button class="${u.draw?'on':''}" onclick="S.su.draw=!S.su.draw;render()">Draw: ${u.draw?'on (tap a question line, or drag a box)':'off (scroll)'}</button></div><div id="lb"></div>${cropLbl(u)}
+   <div class="vw"><div class="in" id="vw" style="touch-action:${u.draw?'none':'auto'}" onpointerdown="pd(event)" onpointermove="pm(event)" onpointerup="pu()"><canvas id="cv"></canvas><div id="hl"></div><div id="sb"></div></div></div></div>`+pendCard(u);
   if(u.qs.length){const n=Object.keys(u.sel).length;
    h+=edCard(u);h+=`<div class="card"><b>${n} of ${u.qs.length} selected</b><div class="mu">Range: choose from and to (the # numbers), for example 20 to 40</div>${(u.secs||[]).length>1?`<div class="chips">${u.secs.map(x=>`<button onclick="togSec('${x}')">${esc(x)} (${u.qs.filter(q=>q.sec==x).length})</button>`).join('')}</div>`:''}<div class="row"><input id="r1" type="number" placeholder="From Q" min="1"><input id="r2" type="number" placeholder="To Q" min="1"><button onclick="rng()">Select range</button></div><div class="row"><button onclick="selAll()">All</button><button onclick="S.su.sel={};render()">Clear</button></div>
    <div class="list">${u.qs.map((q,i)=>`<div class="q ${u.sel[i]?'on':''}" id="qr${i}"><input type="checkbox" aria-label="Select Q${q.n}" ${u.sel[i]?'checked':''} onchange="tog(${i})"><b>#${q.n}${q.sec?' '+esc(q.sec.replace('Exercise','Ex'))+' Q'+q.qn:(q.qn&&q.qn!=q.n?' (PDF Q'+q.qn+')':'')}</b><span class="sn" style="cursor:pointer" onclick="qdOpen(${i})">${q.flag?`<span title="${esc(q.flag)}" style="color:#e8a000">&#9888; ${esc(q.flag)}</span><br>`:''}${snip(q)}</span><button aria-label="Edit" onclick="edGo(${i})">Edit</button>${u.mode=='crop'?`<button aria-label="Delete" onclick="delQ(${i})">x</button>`:''}</div>`).join('')}</div>
@@ -248,6 +248,36 @@ function CLP_sols(sl,pages,name){const res={};if(!sl.length)return res;
    regs.push({p,x0:0,x1:W,y1:top,y0:Math.min(bot,top-12),lt:first?a.y+a.h*0.95:undefined,ct:(first&&pv&&pv.p==p)?pv.y:H*0.95,cb:nextSame?nextSame.y+nextSame.h*0.9+1:H*0.06})});
   (res[a.ex]=res[a.ex]||{})[a.n]={regs,ans}});
  return res}
+function CLP_theory(o){const t=(o.text||'').trim();if(o.opts||o.key!==undefined||o.type=='mtf'||t.length<40||/\?/.test(t)||/:\s*$/.test(t)||/\(\s*[a-dA-D1-4]\s*\)/.test(t))return false;
+ const verb=/\b(find|calculate|determine|evaluate|solve|prove|show that|which|what|how many|compare|arrange|identify|choose|select|match|write|give|name|predict|draw|correct|incorrect|order of|number of|value of|statement|following)\b/i.test(t),
+ defn=/\b(is defined|are defined|is called|are called|is known as|are known as|refers to|generally|usually)\b/i.test(t);
+ return !(verb&&!(defn&&t.length>300))}
+function CLP_box(ls,nx,pages){const regs=[];if(!ls.length)return regs;const pgs=[...new Set(ls.map(l=>l.p))],a=ls[0];
+ pgs.forEach((p,pi)=>{const pg=pages[p-1],H=pg.H,W=pg.W,first=pi==0,last=pi==pgs.length-1,lp=ls.filter(l=>l.p==p),lastL=lp[lp.length-1],nxs=nx&&nx.p==p?nx:null,
+  top=first?a.y+a.h*1.0+2:H*0.93;let bot=nxs?nxs.y+nxs.h*0.9+1:(last&&!nx?lastL.y-lastL.h*0.45:H*0.055);if(!last)bot=H*0.055;bot=Math.max(H*0.055,bot);
+  regs.push({p,x0:0,x1:W,y1:top,y0:Math.min(bot,top-12),lt:first?a.y+a.h*0.95:undefined,ct:first?H*0.95:H*0.95,cb:nxs?nxs.y+nxs.h*0.9+1:H*0.06})});
+ return regs}
+function CLP_examples(pages0){const pages=CLP_split(pages0);let all=[];
+ pages.forEach((pg,pi)=>{CLP_lines(pg,pi+1).filter(l=>l.y<pg.H*0.93&&l.y>pg.H*0.055).forEach(l=>all.push(l))});
+ const EXN=/^\W*(?:solved\s+)?(?:example|illustration|ex|problem)s?\s*[-–—#:.]?\s*(\d{1,3})\b/i,EXC=/^\W*(?:solved\s+)?(?:example|illustration)s?\s*[-–—]?\s*:/i,
+  SOL=/^\W*(?:solution|sol)\s*[.:\-–—]/i,STOP=/^\W*(?:exercise|practice|assignment|level|answer\s*key|summary|key\s*points?)\b/i;
+ const heads=[];all.forEach((l,i)=>{const m=EXN.exec(l.text);if(m)heads.push({i,n:+m[1],re:EXN});else if(EXC.test(l.text))heads.push({i,n:heads.length+1,re:EXC})});
+ if(heads.length<2)return[];const out=[];
+ heads.forEach((h,k)=>{const end=k+1<heads.length?heads[k+1].i:all.length;let stop=end;
+  for(let j=h.i+1;j<end;j++)if(STOP.test(all[j].text)||CLP_HEAD.test(all[j].text)){stop=j;break}
+  let si=-1;for(let j=h.i;j<stop;j++)if(SOL.test(all[j].text)){si=j;break}
+  const qEnd=si>=0?si:stop,qL=all.slice(h.i,qEnd),sL=si>=0?all.slice(si,stop):[];if(!qL.length)return;
+  let text=qL.map(l=>l.text).join('\n').replace(h.re,'').replace(/^[\s:.\-–—]+/,'').trim();if(text.length<12)return;
+  const op=CLP_opts(text);let opts,stem=text;if(op){opts=op.opts.map(o=>(o||'').trim().slice(0,220));stem=op.stem}
+  let key;const st=sL.slice(0,6).map(l=>l.text).join(' ')+' '+qL.slice(-2).map(l=>l.text).join(' ');
+  const m1=/Ans(?:wer)?\.?\s*[:\-=]?\s*\(?\s*([A-Da-d1-4])\s*\)/.exec(st);if(m1&&opts){const c=m1[1];key=/\d/.test(c)?'ABCD'[+c-1]:c.toUpperCase()}
+  const type=opts?'mcq':'sub';
+  out.push({n:0,qn:h.n,sec:'Examples',type,multi:false,nopt:opts?opts.length:undefined,text:stem.slice(0,700),opts,key,vis:true,
+   regs:CLP_box(qL,sL.length?sL[0]:(all[stop]||null),pages),solRegs:sL.length?CLP_box(sL,all[stop]||null,pages):undefined,p:qL[0].p,flag:key||!opts?'':'no key'})});
+ out.forEach(o=>{(o.regs.concat(o.solRegs||[])).forEach(r=>{const pp=pages[r.p-1];r.p=pp.real;if(pp.xr){r.x0+=pp.xr[0];r.x1+=pp.xr[0]}});o.p=pages[o.p-1].real;if(o.solRegs&&o.solRegs.length)o.sp=o.solRegs[0].p});
+ {const ws=out.filter(o=>o.solRegs&&o.solRegs.length).length;if(ws<Math.max(2,out.length*0.4))return[]}
+ return out}
+
 function CLP_opts(txt){const T=txt.replace(/\r/g,'');
  const get=(cls,needSpace)=>{const re=new RegExp('(^|\\s)\\(\\s*(['+cls+'])\\s*\\)','g'),mk=[];let m;while((m=re.exec(T))){const st=m.index+m[1].length;if(needSpace&&!(st==0||T[st-1]=='\n'||/\s\s$/.test(T.slice(Math.max(0,st-2),st))))continue;mk.push({L:m[2],s:st,e:re.lastIndex})}return mk};
  const get2=()=>{const re=/(^|\n)[ \t]*([A-M])[.)][ \t]+/g,mk=[];let m;while((m=re.exec(T)))mk.push({L:m[2],s:m.index+m[1].length,e:re.lastIndex});return mk};
@@ -289,22 +319,43 @@ async function cropQ(pdf,regs,cache,SC,QL){const S1=SC||1.25,parts=[];
   if(r.ct!==undefined&&r.cb!==undefined&&w>40){const R=inkRows(c,x,w),cT=Math.max(0,Math.round(c.height-r.ct*S1)),cB=Math.min(c.height,Math.round(c.height-r.cb*S1));const ts=r.lt!==undefined?Math.max(0,c.height-r.lt*S1):top;[top,bt]=refineRows(R,ts,bt,cT,cB,r.lt!==undefined);bt=Math.min(c.height,bt)}
   const hh=bt-top;if(hh<12||w<12)continue;parts.push({c,x,top,w,hh})}
  if(!parts.length)return null;const W=Math.max(...parts.map(p=>p.w)),H=parts.reduce((s,p)=>s+p.hh,0),t=document.createElement('canvas');t.width=W;t.height=H;const g=t.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);let y=0;parts.forEach(p=>{g.drawImage(p.c,p.x,p.top,p.w,p.hh,0,y,p.w,p.hh);y+=p.hh});return t.toDataURL('image/jpeg',QL||.5)}
-async function pickPdf(f){if(!f)return;const u=S.su;u.mode='text';u.msg='Reading '+f.name+'...';u.qs=[];u.sel={};u.retry=null;render();
- try{await initPdf();const pdf=u.pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;u.pdfName=f.name;u.pdfSig=f.name+'_'+f.size;u.pg=1;
+
+/* ---------- scans and photos: OCR in the browser (no key needed) ---------- */
+function setMsg(t){S.su.msg=t;const e=$('#pm');if(e)e.textContent=t}
+async function initOcr(){if(window.Tesseract)return;await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=ok;s.onerror=()=>no(new Error('The scan reader could not load. It needs internet the first time.'));document.head.appendChild(s)})}
+async function imgDocFrom(files){const ims=[];for(const f of files){ims.push(await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('Could not open '+f.name));i.src=URL.createObjectURL(f)}))}
+ return{isImg:true,numPages:ims.length,async getPage(n){const im=ims[n-1],W=1000,H=Math.round(1000*im.naturalHeight/im.naturalWidth);
+  return{getViewport:({scale})=>({width:W*scale,height:H*scale,scale,transform:[scale,0,0,-scale,0,H*scale]}),
+   render:({canvasContext:g,viewport:v})=>{g.fillStyle='#fff';g.fillRect(0,0,v.width,v.height);g.drawImage(im,0,0,v.width,v.height);return{promise:Promise.resolve()}},
+   getTextContent:async()=>({items:[]})}}}}
+async function ocrPages(pdf,pages,u){await initOcr();const w=await Tesseract.createWorker('eng');u.ocr={};
+ try{for(let p=1;p<=pdf.numPages;p++){if(pages[p-1].items.length>=8)continue;setMsg('Reading text from the scan, page '+p+' of '+pdf.numPages+' (first time can take a minute)...');
+  const pg=await pdf.getPage(p),vp=pg.getViewport({scale:2}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  const {data}=await w.recognize(cv),H=vp.height/2;
+  const its=(data.words||[]).filter(x=>x.text&&x.text.trim()&&x.confidence>30).map(x=>{const h=(x.bbox.y1-x.bbox.y0)/2;return{s:x.text,x:x.bbox.x0/2,y:H-x.bbox.y1/2+0.2*h,h:h*1.1,w:(x.bbox.x1-x.bbox.x0)/2}});
+  pages[p-1].items=its;u.ocr[p]=its}}finally{try{await w.terminate()}catch(e){}}}
+async function pickPdf(fin){const fl=fin&&fin.length!==undefined&&!fin.name?[...fin]:[fin],f=fl[0];if(!f)return;const u=S.su;u.mode='text';u.msg='Reading '+f.name+'...';u.qs=[];u.sel={};u.retry=null;u.ocr={};u.lens=null;render();
+ try{await initPdf();const isImg=/^image\//.test(f.type),pdf=u.pdf=isImg?await imgDocFrom(fl.filter(x=>/^image\//.test(x.type))):await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;u.pdfName=f.name;u.pdfSig=f.name+'_'+fl.reduce((a,x)=>a+x.size,0);u.pg=1;
   const pages=[];for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p),c=await pg.getTextContent(),vp=pg.getViewport({scale:1});
    pages.push({W:vp.width,H:vp.height,items:c.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],h:it.height||Math.abs(it.transform[3])||10,w:it.width}))})}
-  const qs=CLP_parse(pages),cache={};if(qs.notQ){u.qs=[];u.msg=f.name+': this looks like theory or notes (no options, no answer key found), so no questions were made. Choose a question PDF.';render();return}let k=0;
-  for(const q of qs){if(q.vis&&q.regs&&q.regs.length){u.msg='Cropping figures '+(++k)+'...';try{const im=await cropQ(pdf,q.regs,cache);if(im){q.img=im}else q.flag=(q.flag?q.flag+', ':'')+'crop failed'}catch(e){q.flag=(q.flag?q.flag+', ':'')+'crop failed'}}Object.keys(cache).forEach(k=>{if(+k<(q.p||1)-1)delete cache[k]});delete q.regs;delete q.vis}
-  {const c2={};let k2=0;for(const q of qs){if(q.solRegs&&q.solRegs.length){u.msg='Reading solutions '+(++k2)+'...';try{const im=await cropQ(pdf,q.solRegs,c2,1.0,.42);if(im)q.sol=im}catch(e){}}Object.keys(c2).forEach(k=>{if(+k<(q.sp||1)-1)delete c2[k]});delete q.solRegs;delete q.sp}}
+  let ocrUsed=false;let aiq=null;{const low=pages.filter(p=>p.items.length<8).length;if((isImg||low>=pages.length*0.5)&&aiKey()){try{aiq=await aiDoc(pdf,u)}catch(e){toast((e&&e.message)||'AI failed, using the scan reader');aiq=null}}
+  if(!aiq&&(isImg||low>=pages.length*0.5)){try{await ocrPages(pdf,pages,u);ocrUsed=true}catch(e){u.mode='crop';u.msg=f.name+': no readable text here and the scan reader failed ('+((e&&e.message)||e)+'). Crop mode is on: turn Draw on and drag over each question.';render();return}}}
+  const useAi=aiq&&aiq.length>0,qs=useAi?aiq:CLP_parse(pages),cache={};let exs=[];if(!useAi){try{exs=CLP_examples(pages)}catch(e){}}
+  if(qs.notQ){qs.length=0;delete qs.notQ;if(!exs.length){u.qs=[];u.msg=f.name+': this looks like theory or notes (no options, no answer key, no worked examples), so no questions were made. Choose a question PDF.';render();return}exs.forEach(e=>qs.push(e))}
+  else if(exs.length>=2)exs.forEach(e=>qs.push(e));
+  qs.forEach((q,i)=>{q.n=i+1;if(q.sec!=='Examples'&&CLP_theory(q)){q.theory=true;q.flag=(q.flag?q.flag+', ':'')+'looks like theory, not selected'}});let k=0;
+  for(const q of qs){if(q.vis&&q.regs&&q.regs.length){setMsg('Cropping questions '+(++k)+' of '+qs.length+'...');try{const im=await cropQ(pdf,q.regs,cache);if(im){q.img=im}else q.flag=(q.flag?q.flag+', ':'')+'crop failed'}catch(e){q.flag=(q.flag?q.flag+', ':'')+'crop failed'}}Object.keys(cache).forEach(k=>{if(+k<(q.p||1)-1)delete cache[k]});delete q.regs;delete q.vis}
+  {const c2={};let k2=0;for(const q of qs){if(q.solRegs&&q.solRegs.length){setMsg('Attaching solutions '+(++k2)+'...');try{const im=await cropQ(pdf,q.solRegs,c2,1.0,.42);if(im)q.sol=im}catch(e){}}Object.keys(c2).forEach(k=>{if(+k<(q.sp||1)-1)delete c2[k]});delete q.solRegs;delete q.sp}}
   u.qs=qs;
-  if(u.qs.length){u.qs.forEach((q,i)=>u.sel[i]=1);u.secs=[...new Set(u.qs.map(q=>q.sec).filter(Boolean))];const nf=u.qs.filter(q=>q.flag).length,nk=u.qs.filter(q=>q.key!==undefined).length,mg=u.qs.filter(q=>q.miss&&q.miss.length);
-   u.msg=f.name+': found '+u.qs.length+' questions'+(u.secs.length>1?' in '+u.secs.length+' exercises':'')+', '+nk+' answers read from the key'+(qs.filter(q=>q.sol).length?', '+qs.filter(q=>q.sol).length+' solutions attached':'')+(nf?', '+nf+' marked for review (use Retry).':'.')+(mg.length?' Possibly merged: '+mg.map(q=>'Q'+q.qn+' (may include '+q.miss.map(m=>'Q'+m).join(', ')+')').join('; ')+'.':'')}
+  if(u.qs.length){u.qs.forEach((q,i)=>{if(!q.theory)u.sel[i]=1});u.secs=[...new Set(u.qs.map(q=>q.sec).filter(Boolean))];const nf=u.qs.filter(q=>q.flag).length,nk=u.qs.filter(q=>q.key!==undefined).length,mg=u.qs.filter(q=>q.miss&&q.miss.length);
+   u.msg=f.name+': found '+u.qs.length+' questions'+(u.secs.length>1?' in '+u.secs.length+' exercises':'')+', '+nk+' answers read from the key'+(qs.filter(q=>q.sol).length?', '+qs.filter(q=>q.sol).length+' solutions attached':'')+(u.qs.filter(q=>q.theory).length?', '+u.qs.filter(q=>q.theory).length+' theory-like items left unselected':'')+(u.qs.some(q=>q.sec=='Examples')?', worked examples picked from the theory':'')+(useAi?' (found by the AI. Tap "AI: fill missing answers and solutions" below to solve them)':'')+(ocrUsed?' (text read from a scan, so check it)':'')+(nf?', '+nf+' marked for review (use Retry).':'.')+(mg.length?' Possibly merged: '+mg.map(q=>'Q'+q.qn+' (may include '+q.miss.map(m=>'Q'+m).join(', ')+')').join('; ')+'.':'')}
   else{u.mode='crop';u.msg=f.name+': no readable question text, so crop mode is on. Turn Draw on and drag over each question.'}}
  catch(e){u.msg='Could not read this PDF: '+((e&&e.message)||e)}
  render()}
 function edCard(u,bare,ii){const i=ii!=null?ii:u.ed;if(i==null||!u.qs[i])return '';const q=u.qs[i],isM=q.type=='mcq',nO=q.nopt||4,pq=u.pend&&u.pend.kind=='q'&&u.retry===i?u.pend:null,shown=pq?pq.im:q.img;
  const nv=`<button ${i?'':'disabled'} onclick="edGo(${i-1})">Previous</button><button ${i<u.qs.length-1?'':'disabled'} onclick="edGo(${i+1})">Next</button>`;
  return `<div class="card" id="edc">${bare?'':`<div class="top"><b>Edit Q${q.n}${q.sec?' ('+esc(q.sec)+' Q'+q.qn+')':''}</b><button onclick="S.su.ed=null;render()">Close</button></div><div class="row">${nv}</div>`}${q.flag?`<div class="card" style="border-color:var(--wn);background:var(--wnb)"><b>Check this one</b><div class="mu">${esc(q.flag)}</div>${(q.miss||[]).map(m=>`<button onclick="insMiss(${i},${m})">Add missing Q${m} (crop it)</button>`).join('')}<button onclick="retryQ(${i})">Crop this question again</button></div>`:''}
+ <div class="row">${aiKey()?`<button class="p" onclick="aiSolveI(${i})">Solve with AI (answer and solution)</button>`:'<button onclick="aiSetKey()">Set up Smart AI</button>'}</div>
  ${shown?`<div style="position:relative">${pq?'<div class="mu"><b>New crop. Not saved yet.</b></div>':''}<img class="qi" src="${shown}" alt="Question image"><button aria-label="Edit image" title="Crop again" style="position:absolute;top:6px;right:6px" onclick="retryQ(${i})">&#9998;</button></div>
  <div class="grid"><button onclick="retryQ(${i})">Crop again</button><button onclick="edNoImg(${i})">Remove image</button><button onclick="edUseText(${i})">Use typed text</button>${pq?'<button class="p" onclick="cropSave()">Save</button>':''}</div>`:`<div class="mu">No image. ${q.imgBak?'<button onclick="edBack('+i+')">Use the image again</button> ':''}<button onclick="retryQ(${i})">Crop from PDF</button></div>`}
  <label>Question type</label><select onchange="edType(${i},this.value)">${[['mcq','MCQ (pick an option)'],['num','Numerical (type a number)'],['mtf','Match the column'],['sub','Written (not auto-checked)']].map(o=>`<option value="${o[0]}"${q.type==o[0]?' selected':''}>${o[1]}</option>`).join('')}</select>
@@ -312,17 +363,19 @@ function edCard(u,bare,ii){const i=ii!=null?ii:u.ed;if(i==null||!u.qs[i])return 
  <label><input type="checkbox" ${q.multi?"checked":""} onchange="S.su.qs[${i}].multi=this.checked"> Multiple correct answers</label>
  ${q.img?'':`<label>Question text</label><textarea rows="3" oninput="S.su.qs[${i}].text=this.value">${esc(q.text||'')}</textarea>
  ${isM?Array.from({length:nO},(_,k)=>`<label>Option ${'ABCDEFGHIJKLM'[k]}</label><input value="${esc((q.opts||[])[k]||'')}" oninput="edOpt(${i},${k},this.value)">`).join(''):''}`}
- <label>Correct answer ${isM?'(letters like B or B,C)':q.type=='num'?'(number)':'(text)'}</label><input value="${esc(q.key||'')}" oninput="edKey(${i},this.value)"><div class="row"><button onclick="qSearch(${i})">Search Google</button><button onclick="qCopyAI(${i})">Copy for AI</button></div><p class="mu">The app cannot look up answers by itself. These open a Google search or copy the question so you can paste it into any AI chat.</p>
+ <label>Correct answer ${isM?'(letters like B or B,C)':q.type=='num'?'(number)':'(text)'}</label><input value="${esc(q.key||'')}" oninput="edKey(${i},this.value)"><div class="row"><button onclick="qSearch(${i})">Search Google</button><button onclick="qCopyAI(${i})">Copy for AI</button><button onclick="qGemI(${i})">Ask Gemini</button><button onclick="aiSolveI(${i})">Solve with AI</button></div><p class="mu">The app cannot look up answers by itself. These open a Google search or copy the question so you can paste it into any AI chat.</p>
  ${bare?'':`<label>Answer or solution text (optional)</label><input value="${esc(q.ref||'')}" oninput="S.su.qs[${i}].ref=this.value">`}
  ${!bare&&q.sol?`<img class="qi" src="${q.sol}" alt="Solution image">`:''}<div class="row"><button onclick="retrySol(${i})">${q.sol?'Re-crop':'Add'} solution crop</button>${q.sol?`<button onclick="delete S.su.qs[${i}].sol;render()">Remove solution</button>`:''}</div>
  ${bare?'':`<div class="row">${nv}</div><div class="row"><button class="p" onclick="S.su.ed=null;S.su.qs[${i}].flag='';render()">Done</button></div>`}</div>`}
 function edGo(i){const u=S.su;if(i<0||i>=u.qs.length)return;u.ed=i;render();const e=document.getElementById('edc');if(e)e.scrollIntoView({block:'start'})}
 const qTxt=q=>[(q.text||'').trim(),...(q.opts||[]).map((o,k)=>'('+'ABCDEFGHIJKLM'[k]+') '+o)].filter(Boolean).join('\n');
-function qSearchQ(q){const t=(q.text||'').replace(/\s+/g,' ').trim().slice(0,220);if(!t)return toast('No question text was read for this one. Use Copy for AI and paste the picture.');window.open('https://www.google.com/search?q='+encodeURIComponent(t),'_blank','noopener')}
-async function qCopyQ(q){const p='Solve this exam question. Give the correct option or answer and a short step-by-step solution.\n\n'+qTxt(q);
+function qSearchQ(q){const t=qTxt(q).replace(/\s+/g,' ').trim().slice(0,700);if(!t)return toast('No question text was read for this one. Use Ask Gemini and paste the picture.');window.open('https://www.google.com/search?q='+encodeURIComponent('Give only the final answer in one short line (option letter and value). No steps. '+t),'_blank','noopener')}
+async function qCopyQ(q){const p='Give only the final answer in one short line (the correct option letter or the value), then at most 2 short lines of reason. No long steps.\n\n'+qTxt(q);
  try{if(q.img&&window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){const bl=await new Promise(r=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);c.toBlob(r,'image/png')};im.src=q.img});await navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([p],{type:'text/plain'}),'image/png':bl})]);toast('Question and picture copied. Paste into an AI chat.');return}await navigator.clipboard.writeText(p);toast('Question text copied')}
  catch(e){try{await navigator.clipboard.writeText(p);toast('Question text copied. The picture could not be copied.')}catch(_){toast('Could not copy')}}}
 const qSearch=i=>qSearchQ(S.su.qs[i]),qCopyAI=i=>qCopyQ(S.su.qs[i]);
+async function qGem(q){await qCopyQ(q);const w=window.open('https://gemini.google.com/app','_blank','noopener');if(!w)toast('Copied. Open gemini.google.com and paste.')}
+const qGemI=i=>qGem(S.su.qs[i]);
 const edType=(i,v)=>{const q=S.su.qs[i];q.type=v;if(v=='mcq'&&!q.nopt)q.nopt=4;if(v!='mcq')q.multi=false;q.flag=(q.flag||'').split(', ').filter(x=>x.indexOf('check type')<0).join(', ');render()};
 const edN=(i,n)=>{const q=S.su.qs[i];q.nopt=n;if(q.opts){q.opts=q.opts.slice(0,n);while(q.opts.length<n)q.opts.push('')}render()};
 const edUseText=i=>{cropClr();const q=S.su.qs[i];q.imgBak=q.img;delete q.img;const n=q.nopt||4;q.opts=q.opts||[];while(q.opts.length<n)q.opts.push('');render()};
@@ -340,12 +393,123 @@ function parseQs(t){let hits=scanQ(t,/(?:^|\n)[ \t]*(?:Q(?:uestion)?\s*\.?\s*(\d
    for(const L of set){const r=new RegExp('(?:\\(\\s*'+L+'\\s*\\)|(?:^|\\s)'+L+'[.)])\\s*','m'),x=r.exec(b.slice(pos));if(!x)break;ix.push([pos+x.index,pos+x.index+x[0].length]);pos=pos+x.index+x[0].length}
    if(ix.length==4)return{n:h.n,type:'mcq',text:b.slice(0,ix[0][0]).trim(),opts:ix.map((p,k)=>b.slice(p[1],k<3?ix[k+1][0]:b.length).trim())}}
   return{n:h.n,type:'num',text:b}})}
-async function renderPg(){const u=S.su,p=await u.pdf.getPage(u.pg),vp=p.getViewport({scale:1.6}),c=$('#cv');if(!c)return;c.width=vp.width;c.height=vp.height;await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;const b=u.pbox,sb=$('#sb');if(sb)sb.style.cssText=b&&b.p==u.pg?`display:block;left:${b.l*100}%;top:${b.t*100}%;width:${b.w*100}%;height:${b.h*100}%`:'display:none'}
+
+/* ---------- Smart AI (optional, user's own free Gemini key) ---------- */
+const aiKey=()=>{try{return localStorage.getItem('tm_gkey')||''}catch(e){return ''}};
+const aiModel=()=>{try{return localStorage.getItem('tm_gmodel')||'gemini-flash-latest'}catch(e){return 'gemini-flash-latest'}};
+(function(){const m=/[#&]k=([^&]+)/.exec(location.hash);if(m){try{localStorage.setItem('tm_gkey',decodeURIComponent(m[1]));history.replaceState(null,'',location.pathname+location.search)}catch(e){}}})();
+function aiSetKey(){const k=prompt('Paste your free Gemini API key (made at aistudio.google.com). Leave it empty to turn Smart AI off.',aiKey());if(k===null)return;
+ try{localStorage.setItem('tm_gkey',k.trim());if(k.trim()){const m=prompt('AI model name. Leave as it is unless it stops working.',aiModel());if(m)localStorage.setItem('tm_gmodel',m.trim())}}catch(e){}
+ toast(aiKey()?'Smart AI is on':'Smart AI is off');render()}
+async function aiPage(cv){const key=aiKey();if(!key)throw new Error('No AI key set');
+ const sc=Math.min(1,1600/Math.max(cv.width,cv.height)),t=document.createElement('canvas');t.width=Math.round(cv.width*sc);t.height=Math.round(cv.height*sc);t.getContext('2d').drawImage(cv,0,0,t.width,t.height);
+ const b64=t.toDataURL('image/jpeg',.8).split(',')[1];
+ const pr='This image is one page from an exam question book or worksheet. Find every separate question or worked example on the page. For each give "number" (the printed question or example number, as text), "kind" ("question", "example" or "theory") and "box_2d" as [ymin, xmin, ymax, xmax] in 0-1000, covering the whole question: its number, text, any diagram or table and all its options, but nothing of the next question. Pages can have two columns: give each question its own box. Also give "type" ("mcq", "multi" or "numerical") and "n_options" (how many options are printed, 0 if none). Ignore headers, footers and plain theory paragraphs. Return only a JSON array.';
+ for(let tr=0;tr<4;tr++){
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(aiModel())+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:pr},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{temperature:0,responseMimeType:'application/json'}})});
+  if(r.status==429){await new Promise(o=>setTimeout(o,12000));continue}
+  if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}throw new Error('AI error '+r.status+(m?': '+m.slice(0,140):''))}
+  const d=await r.json(),cn=((d.candidates||[])[0]||{}).content,txt=cn&&cn.parts?cn.parts.map(p=>p.text||'').join(''):'';let arr;
+  try{arr=JSON.parse(txt.replace(/```json|```/g,'').trim())}catch(e){throw new Error('AI gave an answer that could not be read')}
+  if(!Array.isArray(arr))arr=arr&&Array.isArray(arr.questions)?arr.questions:[];
+  return arr.filter(a=>a&&Array.isArray(a.box_2d)&&a.box_2d.length==4&&a.box_2d.every(n=>typeof n=='number')&&a.kind!='theory').map(a=>({num:String(a.number||'').replace(/\D/g,''),kind:a.kind,ty:String(a.type||'').toLowerCase(),no:+a.n_options||0,box:a.box_2d.map(n=>Math.max(0,Math.min(1000,n)))}))}
+ throw new Error('The AI is busy (free limit). Wait a minute and try again.')}
+async function aiDoc(pdf,u){const out=[];
+ for(let p=1;p<=pdf.numPages;p++){setMsg('AI is reading page '+p+' of '+pdf.numPages+'...');const pg=await pdf.getPage(p),vp=pg.getViewport({scale:1.5}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+  await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;const v1=pg.getViewport({scale:1}),W=v1.width,H=v1.height,bx=await aiPage(cv);
+  bx.sort((a,b)=>(a.box[1]>=480?1:0)-(b.box[1]>=480?1:0)||a.box[0]-b.box[0]);
+  bx.forEach(b=>{const [y0,x0,y1,x1]=b.box,pad=5;out.push({qn:b.num?+b.num:out.length+1,sec:'',type:b.ty.indexOf('num')==0?'num':'mcq',nopt:b.no>=2?Math.min(b.no,8):4,multi:b.ty=='multi',text:'',vis:true,p,regs:[{p,x0:Math.max(0,x0/1000*W-pad),x1:Math.min(W,x1/1000*W+pad),y1:Math.min(H,H-y0/1000*H+pad),y0:Math.max(0,H-y1/1000*H-pad)}],flag:'AI-detected: tap AI fill to get the answer'})})}
+ out.forEach((q,i)=>q.n=i+1);return out}
+async function aiFind(){const u=S.su,c=$('#cv'),b=$('#lb');if(!c)return;if(!aiKey())return aiSetKey();if(b)b.innerHTML='<div class="mu">Asking the AI to find the questions on this page...</div>';
+ try{const bx=await aiPage(c);u.ai=u.ai||{};u.ai[u.pg]=bx;u.aiSel=null;u.lens=null;const tq=u.retry!=null?(u.qs[u.retry]||{}).qn:u.ins?u.ins.qn:null;if(tq){const i=bx.findIndex(x=>+x.num===+tq);if(i>=0)u.aiSel=i}
+  if(!bx.length)toast('The AI found no questions on this page');lensPaint()}catch(e){toast(e.message||'AI failed');lensPaint()}}
+
+async function aiGen(parts,search){const key=aiKey();if(!key)throw new Error('No AI key set');
+ for(let tr=0;tr<4;tr++){const body={contents:[{parts}],generationConfig:{temperature:0.1}};if(search)body.tools=[{google_search:{}}];
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(aiModel())+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status==429){await new Promise(o=>setTimeout(o,12000));continue}
+  if(r.status==400&&search){search=false;continue}
+  if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}throw new Error('AI error '+r.status+(m?': '+m.slice(0,140):''))}
+  const d=await r.json(),cn=((d.candidates||[])[0]||{}).content;return cn&&cn.parts?cn.parts.map(p=>p.text||'').join(''):''}
+ throw new Error('The AI is busy (free limit). Wait a minute and try again.')}
+function aiApply(q,r){const ty=String(r.type||'').toLowerCase(),ans=String(r.answer==null?'':r.answer).trim();let ch=false;
+ if(ty.indexOf('num')==0){const n=ans.replace(/[,\s]/g,'');if(/^-?\d+(\.\d+)?$/.test(n)&&q.key===undefined){q.type='num';q.key=n;ch=true}}
+ else{const k=mcqKey(ans);if(/^[A-M](,[A-M])*$/.test(k)&&q.key===undefined){q.type='mcq';q.nopt=Math.max(q.nopt||0,+r.options||4,...k.replace(/,/g,'').split('').map(c=>c.charCodeAt(0)-64));q.key=k;q.multi=k.indexOf(',')>0;ch=true}}
+ if(r.solution&&!q.ref){q.ref='AI solution (please verify): '+String(r.solution).trim().slice(0,1200);ch=true}
+ if(ch)q.flag=((q.flag||'').split(', ').filter(x=>x&&x.indexOf('check type')<0&&x.indexOf('no key')<0&&x.indexOf('AI-detected')<0).concat('AI-filled: verify').join(', '));return ch}
+async function aiSolve(q){const t=qTxt(q),parts=[];
+ parts.push({text:'Solve this exam question (JEE or NEET level) carefully. Use Google Search if it helps to confirm the answer. Reply with ONLY one JSON object and no other text: {"type":"mcq" or "multi" or "numerical","options":number of options shown (4 if unknown),"answer":"letter or letters A-D like A or A,C for several correct, or the number for a numerical question","solution":"short step-by-step solution in plain text, at most 8 short lines","confidence":0-100}. If the options are numbered (1),(2),(3),(4), answer with A,B,C,D (1=A).'+(t?'\n\nQuestion text (may be incomplete; trust the picture):\n'+t:'')});
+ if(q.img&&/^data:image\/(jpeg|png);base64,/.test(q.img))parts.push({inline_data:{mime_type:q.img.indexOf('data:image/png')==0?'image/png':'image/jpeg',data:q.img.split(',')[1]}});
+ else if(!t)throw new Error('This question has no text or picture');
+ const txt=await aiGen(parts,true),m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('The AI answer could not be read');let r;try{r=JSON.parse(m[0])}catch(e){throw new Error('The AI answer could not be read')}
+ return aiApply(q,r)}
+let aiBusy=false;
+async function aiSolveI(i){const q=S.su.qs[i];if(!q)return;if(!aiKey())return aiSetKey();toast('The AI is solving this...');try{const ch=await aiSolve(q);toast(ch?'Answer and solution added. Please verify.':'The AI added nothing new')}catch(e){toast(e.message||'AI failed')}render()}
+async function qAiB(ck,id){if(!aiKey())return aiSetKey();const c=chByK(ck),q=c&&c.all[id];if(!q)return;toast('The AI is solving this...');try{const ch=await aiSolve(q);if(ch)save();toast(ch?'Answer and solution added. Please verify.':'The AI added nothing new')}catch(e){toast(e.message||'AI failed')}render()}
+async function aiBulk(){const u=S.su;if(!aiKey())return aiSetKey();if(aiBusy)return;aiBusy=true;u.aiStop=false;
+ const todo=u.qs.map((q,i)=>i).filter(i=>{const q=u.qs[i];return q.type!='mtf'&&(q.key===undefined||!q.ref)&&(q.img||q.text)});let done=0,fail=0;
+ for(const i of todo){if(u.aiStop)break;setMsg('The AI is solving '+(done+1)+' of '+todo.length+'... (tap Stop to end)');
+  try{await aiSolve(u.qs[i])}catch(e){fail++;if(/ 40[13]|API key|No AI key/i.test(e.message||'')){setMsg((e.message||'AI failed')+'. Check your key.');break}}done++;await new Promise(o=>setTimeout(o,3500))}
+ aiBusy=false;setMsg('The AI finished '+done+' of '+todo.length+(fail?' ('+fail+' failed)':'')+'. Please verify the answers.');render()}
+/* ---------- Lens-style question picker (tap a line, it turns blue, box is cut automatically) ---------- */
+const LN_LBL=/^\s*(?:Q\.?\s*)?(\d{1,3})\s*[.)]\s*(?!\d)/;
+function lnBuild(its,W){its.sort((p,q)=>p.yb-q.yb||p.x-q.x);const rows=[];
+ its.forEach(i=>{const r=rows.find(r=>Math.abs(r.yb-i.yb)<Math.max(2,0.5*Math.min(r.h,i.h)));if(r){r.it.push(i);r.h=Math.max(r.h,i.h)}else rows.push({yb:i.yb,h:i.h,it:[i]})});
+ const L=[];rows.forEach(r=>{r.it.sort((p,q)=>p.x-q.x);let cur=null;
+  r.it.forEach(i=>{if(cur&&i.x-cur.x1<0.05*W){cur.x1=Math.max(cur.x1,i.x+i.w);cur.s+=' '+i.s}else{cur={x0:i.x,x1:i.x+i.w,top:r.yb-0.95*r.h,bot:r.yb+0.28*r.h,s:i.s};L.push(cur)}})});
+ L.sort((p,q)=>p.top-q.top||p.x0-q.x0);return L}
+function lnCols(L,W){const mid=W/2;let l=0,r=0,f=0;const span=s=>s.x0<mid-0.08*W&&s.x1>mid+0.08*W;
+ L.forEach(s=>{if(span(s))f++;else if(s.x1<=mid+0.03*W)l++;else if(s.x0>=mid-0.03*W)r++});
+ const two=l>=4&&r>=4&&f<=0.25*(l+r+f);L.forEach(s=>{s.c=!two?0:span(s)?-1:(s.x0+s.x1)/2<mid?0:1});L.two=two;return two}
+const lnOk=(A,s)=>A.c===-1||s.c===-1||s.c===A.c;
+function lnAuto(L,a,H){const A=L[a],lb=LN_LBL.exec(A.s),n=lb?+lb[1]:null;let bot=H*0.94;
+ for(let j=a+1;j<L.length;j++){const s=L[j];if(!lnOk(A,s)||s.top<A.top)continue;if(s.top>H*0.94)break;
+  const m=LN_LBL.exec(s.s);if((m&&s.x0<=A.x0+25&&(n===null||+m[1]!==n))||CLP_HEAD.test(s.s)){bot=s.top-2;break}}
+ let b=a;for(let j=a;j<L.length;j++){const s=L[j];if(lnOk(A,s)&&s.top>=A.top-1&&s.bot<=bot+3)b=j}
+ return{b,bot}}
+function lnRect(L,ln,W,H){const A=L[ln.a],lim=ln.auto?ln.bot:L[ln.b].bot+3,sel=[];
+ L.forEach((s,i)=>{if(lnOk(A,s)&&s.top>=A.top-1&&s.bot<=lim+3&&s.top<=lim)sel.push(i)});
+ const body=L.filter(s=>s.top<H*0.94&&s.top>H*0.04),cols=L.two&&A.c!==-1?body.filter(s=>s.c===A.c):body;
+ const x0=Math.max(0,Math.min(...cols.map(s=>s.x0))-6),x1=Math.min(W,Math.max(...cols.map(s=>s.x1))+6),y0=Math.max(0,A.top-3),y1=Math.min(H,lim);
+ return{sel,x:x0,y:y0,w:x1-x0,h:Math.max(10,y1-y0)}}
+async function lensPrep(p,vp,c){const u=S.su;
+ try{const its=[],oc=u.ocr&&u.ocr[u.pg];if(oc){const H1=vp.height/vp.scale;oc.forEach(o=>its.push({x:o.x*vp.scale,yb:(H1-o.y)*vp.scale,h:o.h*vp.scale,w:o.w*vp.scale,s:o.s}))}else{const tc=await p.getTextContent();tc.items.forEach(it=>{if(!it.str||!it.str.trim())return;const t=pdfjsLib.Util.transform(vp.transform,it.transform);its.push({x:t[4],yb:t[5],h:Math.hypot(t[2],t[3])||10,w:(it.width||0)*vp.scale,s:it.str})})}u.lines=lnBuild(its,c.width);lnCols(u.lines,c.width)}catch(e){u.lines=null}
+ if(u.lensPg!==u.pg){u.lens=null;u.aiSel=null;u.lensPg=u.pg}
+ const tq=u.retry!=null?(u.qs[u.retry]||{}).qn:u.ins?u.ins.qn:null,key=u.pg+':'+(u.retry!=null?u.retry:u.ins?'i'+u.ins.qn:'');
+ if(tq&&u.lines&&u.lensKey!==key){u.lensKey=key;const i=u.lines.findIndex(s=>{const m=LN_LBL.exec(s.s);return m&&+m[1]===+tq&&s.top>c.height*0.04});if(i>=0){const r=lnAuto(u.lines,i,c.height);u.lens={a:i,b:r.b,auto:true,bot:r.bot}}}
+ lensPaint()}
+function lensPaint(){const u=S.su,h=$('#hl'),b=$('#lb'),c=$('#cv');if(!h||!b||!c)return;
+ const ab=(u.ai&&u.ai[u.pg])||[],gb=aiKey()?'<button onclick="aiFind()">Find with AI</button>':'<button onclick="aiSetKey()">Set up Smart AI</button>';
+ const ah=ab.map((x,i)=>{const [y0,x0,y1,x1]=x.box,on=i===u.aiSel;return`<div style="position:absolute;pointer-events:none;border:2px dashed ${on?'#16a34a':'#f59e0b'};background:${on?'rgba(22,163,74,.2)':'rgba(245,158,11,.08)'};left:${x0/10}%;top:${y0/10}%;width:${(x1-x0)/10}%;height:${(y1-y0)/10}%"><span style="position:absolute;left:2px;top:2px;background:#f59e0b;color:#000;font:11px sans-serif;padding:0 4px">${x.num?'Q'+x.num:'?'}</span></div>`}).join('');
+ if(u.aiSel!=null&&ab[u.aiSel]){h.innerHTML=ah;b.innerHTML='<div class="row"><button class="p" onclick="lensUse()">Use this AI box</button><button onclick="S.su.aiSel=null;lensPaint()">Clear</button>'+gb+'</div><div class="mu">Green = the AI box. Tap another box to switch.</div>';return}
+ if(!u.lens||!u.lines){h.innerHTML=ah;b.innerHTML='<div class="row">'+gb+'</div><div class="mu">'+(ab.length?'Tap an orange AI box to pick it.':(u.lines&&u.lines.length?'Tip: turn Draw on, then tap the first line of a question. Its lines turn blue and the end is found automatically. Or drag a box yourself.':'This page has no text layer (scanned). Use Find with AI, or drag a box yourself.'))+'</div>';return}
+ const W=c.width,H=c.height,r=lnRect(u.lines,u.lens,W,H),pc=(a,t)=>a/t*100;
+ h.innerHTML=ah+r.sel.map(i=>{const s=u.lines[i];return`<div style="position:absolute;pointer-events:none;background:rgba(40,110,255,.3);left:${pc(s.x0,W)}%;top:${pc(s.top,H)}%;width:${pc(s.x1-s.x0,W)}%;height:${pc(s.bot-s.top,H)}%"></div>`}).join('')+`<div style="position:absolute;pointer-events:none;border:2px solid #2870ff;left:${pc(r.x,W)}%;top:${pc(r.y,H)}%;width:${pc(r.w,W)}%;height:${pc(r.h,H)}%"></div>`;
+ b.innerHTML='<div class="row"><button class="p" onclick="lensUse()">Use this selection</button><button onclick="lensClr()">Clear</button>'+gb+'</div><div class="mu">Blue = selected. Tap a lower line to change the end, an upper line to change the start.</div>'}
+function lensTap(x,y,R){const u=S.su,c=$('#cv');if(!c)return;const k=c.width/R.width,px=x*k,py=y*k,ab=(u.ai&&u.ai[u.pg])||[];
+ if(ab.length){const nx=px/c.width*1000,ny=py/c.height*1000;let hit=-1,ha=1e12;ab.forEach((a,i)=>{const [y0,x0,y1,x1]=a.box;if(nx>=x0&&nx<=x1&&ny>=y0&&ny<=y1&&(x1-x0)*(y1-y0)<ha){ha=(x1-x0)*(y1-y0);hit=i}});if(hit>=0){u.aiSel=hit;u.lens=null;lensPaint();return}if(u.aiSel!=null){u.aiSel=null}}
+ if(!u.lines||!u.lines.length)return;const L=u.lines;let best=-1,bd=1e9;
+ L.forEach((s,i)=>{const dy=py<s.top?s.top-py:py>s.bot?py-s.bot:0,dx=px<s.x0?s.x0-px:px>s.x1?px-s.x1:0,d=dy*3+dx*0.3;if(d<bd){bd=d;best=i}});if(best<0||bd>60)return;
+ const Ln=u.lens;
+ if(!Ln||best===Ln.a||!lnOk(L[Ln.a],L[best])){const r=lnAuto(L,best,c.height);u.lens={a:best,b:r.b,auto:true,bot:r.bot}}
+ else if(L[best].top>L[Ln.a].top)u.lens={a:Ln.a,b:best,auto:false};
+ else u.lens={a:best,b:Ln.b,auto:Ln.auto,bot:Ln.bot};
+ lensPaint()}
+function lensClr(){const u=S.su;u.lens=null;lensPaint()}
+function lensUse(){const u=S.su,c=$('#cv');if(!c)return;let r;const ab=(u.ai&&u.ai[u.pg])||[];
+ if(u.aiSel!=null&&ab[u.aiSel]){const [y0,x0,y1,x1]=ab[u.aiSel].box,W=c.width,H=c.height,x=Math.max(0,x0/1000*W-4),y=Math.max(0,y0/1000*H-4);r={x,y,w:Math.min(W,x1/1000*W+4)-x,h:Math.min(H,y1/1000*H+4)-y};u.aiSel=null}
+ else{if(!u.lens||!u.lines)return;r=lnRect(u.lines,u.lens,c.width,c.height)}u.lens=null;
+ const t=document.createElement('canvas');t.width=r.w;t.height=r.h;t.getContext('2d').drawImage(c,r.x,r.y,r.w,r.h,0,0,r.w,r.h);
+ const im=t.toDataURL('image/jpeg',.6),kind=u.ins?'ins':u.retrySol!=null?'sol':u.retry!=null?'q':null;
+ if(!kind){u.qs.push({n:u.qs.length+1,type:'mcq',nopt:4,img:im});u.sel[u.qs.length-1]=1;render();return}
+ u.pend={im,p:u.pg,kind};u.pbox={l:r.x/c.width,t:r.y/c.height,w:r.w/c.width,h:r.h/c.height,p:u.pg};if(kind=='q')u.ed=u.retry;render();
+ setTimeout(()=>{const e=document.getElementById(kind=='q'?'edc':'pnd');if(e)e.scrollIntoView({block:'start'})},120)}
+async function renderPg(){const u=S.su,p=await u.pdf.getPage(u.pg),vp=p.getViewport({scale:1.6}),c=$('#cv');if(!c)return;c.width=vp.width;c.height=vp.height;await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;const b=u.pbox,sb=$('#sb');if(sb)sb.style.cssText=b&&b.p==u.pg?`display:block;left:${b.l*100}%;top:${b.t*100}%;width:${b.w*100}%;height:${b.h*100}%`:'display:none';await lensPrep(p,vp,c)}
 const pgGo=d=>{const u=S.su,n=u.pg+d;if(n>=1&&n<=u.pdf.numPages){u.pg=n;render()}};
 let CR=null;
 function pd(e){if(!S.su.draw)return;const r=$('#cv').getBoundingClientRect();CR={x:e.clientX-r.left,y:e.clientY-r.top,r,x2:null,y2:null};e.currentTarget.setPointerCapture(e.pointerId)}
 function pm(e){if(!CR)return;const r=CR.r;CR.x2=Math.min(Math.max(e.clientX-r.left,0),r.width);CR.y2=Math.min(Math.max(e.clientY-r.top,0),r.height);$('#sb').style.cssText=`display:block;left:${Math.min(CR.x,CR.x2)}px;top:${Math.min(CR.y,CR.y2)}px;width:${Math.abs(CR.x2-CR.x)}px;height:${Math.abs(CR.y2-CR.y)}px`}
-function pu(){if(!CR||CR.x2===null){CR=null;return}const c=$('#cv'),R=CR.r,k=c.width/R.width,x=Math.min(CR.x,CR.x2),y=Math.min(CR.y,CR.y2),w=Math.abs(CR.x2-CR.x),h=Math.abs(CR.y2-CR.y);CR=null;if(w<15||h<15){$('#sb').style.display='none';return}
+function pu(){if(!CR||CR.x2===null){const t0=CR;CR=null;if(t0)lensTap(t0.x,t0.y,t0.r);return}const c=$('#cv'),R=CR.r,k=c.width/R.width,x=Math.min(CR.x,CR.x2),y=Math.min(CR.y,CR.y2),w=Math.abs(CR.x2-CR.x),h=Math.abs(CR.y2-CR.y);CR=null;if(w<15||h<15){$('#sb').style.display='none';lensTap(x,y,R);return}
  const t=document.createElement('canvas');t.width=w*k;t.height=h*k;t.getContext('2d').drawImage(c,x*k,y*k,w*k,h*k,0,0,t.width,t.height);
  const u=S.su,im=t.toDataURL('image/jpeg',.6),kind=u.ins?'ins':u.retrySol!=null?'sol':u.retry!=null?'q':null;
  if(!kind){u.qs.push({n:u.qs.length+1,type:'mcq',nopt:4,img:im});u.sel[u.qs.length-1]=1;render();return}
@@ -525,7 +689,7 @@ function qdEditB(d,q){const ck=d.ck,id=esc(q.id),isM=q.type=='mcq',nO=q.nopt||4,
  <label>Type</label><select data-id="${id}" onchange="bFld('${ck}',this.dataset.id,'type',this.value)">${[['mcq','MCQ'],['num','Numerical'],['mtf','Match'],['sub','Written']].map(o=>`<option value="${o[0]}"${q.type==o[0]?' selected':''}>${o[1]}</option>`).join('')}</select>
  ${isM?`<label>Number of options</label><select data-id="${id}" onchange="bFld('${ck}',this.dataset.id,'nopt',+this.value)">${[2,3,4,5,6,7,8,9,10,11,12,13].map(n=>`<option${n==nO?' selected':''}>${n}</option>`).join('')}</select>`:''}
  <label><input type="checkbox" data-id="${id}" ${q.multi?'checked':''} onchange="bFld('${ck}',this.dataset.id,'multi',this.checked)"> Multiple correct answers</label>
- <label>Correct answer ${isM?'(letters like B or B,C)':q.type=='num'?'(number)':'(text)'}</label><input value="${esc(q.key||'')}" data-id="${id}" onchange="mgKey('${ck}',this.dataset.id,this.value);render()"><div class="row"><button data-id="${id}" onclick="qSearchQ(chByK('${ck}').all[this.dataset.id]||{})">Search Google</button><button data-id="${id}" onclick="qCopyQ(chByK('${ck}').all[this.dataset.id]||{})">Copy for AI</button></div>
+ <label>Correct answer ${isM?'(letters like B or B,C)':q.type=='num'?'(number)':'(text)'}</label><input value="${esc(q.key||'')}" data-id="${id}" onchange="mgKey('${ck}',this.dataset.id,this.value);render()"><div class="row"><button data-id="${id}" onclick="qSearchQ(chByK('${ck}').all[this.dataset.id]||{})">Search Google</button><button data-id="${id}" onclick="qCopyQ(chByK('${ck}').all[this.dataset.id]||{})">Copy for AI</button><button data-id="${id}" onclick="qGem(chByK('${ck}').all[this.dataset.id]||{})">Ask Gemini</button><button data-id="${id}" onclick="qAiB('${ck}',this.dataset.id)">Solve with AI</button></div>
  <p class="mu">Re-crop and solution crop need the original PDF, which the bank does not keep. Do those from Test setup with the PDF open.</p></div>
  <div class="card"><b>Solution</b>${!q.sol&&!q.ref?'<div class="mu">No solution added yet.</div>':''}${solBox(c,q)}</div>`}
 function vQD(){const d=S.qd,arr=qdItems();if(!arr.length){S.qd=null;return'<div class="card mu">Nothing to show.</div>'}
